@@ -33,13 +33,18 @@ Das SmartGarden-System besteht aus zwei Node-Typen die kombiniert werden:
 ### Mikrocontroller
 | Komponente | Modell | Preis | Begründung |
 |---|---|---|---|
-| MCU + LoRa | TTGO LoRa32 V2.1 | ~15€ | ESP32 + SX1276 integriert, gut dokumentiert |
+| MCU + LoRa | TTGO LoRa32 V2.1 | ~15€ | ESP32 + SX1276 integriert, kein manuelles Löten des LoRa-Moduls |
 | Alternativ | Heltec WiFi LoRa 32 V3 | ~18€ | Display integriert, einfacheres Debugging |
+
+> **Prototyp-Erfahrung (v0.0):** STM32 + SX1276 Breakout auf Lochraster funktionierte auf 868 MHz,
+> jedoch mit erheblichem Lötaufwand und aufwändiger Toolchain. Wechsel zu ESP32 mit integriertem
+> SX1276 für schnellere Entwicklung. Siehe [ADR-001](ADR-001-MCU-Auswahl.md).
 
 ### Sensorik
 | Komponente | Modell | Preis | Begründung |
 |---|---|---|---|
-| Temp/Feuchte | DHT22 | ~3€ | Zuverlässig, weit verbreitet |
+| Temp/Feuchte/Druck | **BME280** | ~4€ | Im Prototyp bewährt; präziser als DHT22, zusätzlich Luftdruck, I2C |
+| ~~Temp/Feuchte~~ | ~~DHT22~~ | ~~3€~~ | ~~Ersetzt durch BME280~~ |
 | Bodenfeuchte | Capacitive Sensor v1.2 | ~4€ | Kein Rost (resistive vermeiden!) |
 | Bewegung | HC-SR501 PIR | ~2€ | Einstellbare Empfindlichkeit |
 | Erschütterung | SW-420 | ~1€ | Für Türen/Fenster der Laube |
@@ -92,8 +97,9 @@ Das SmartGarden-System besteht aus zwei Node-Typen die kombiniert werden:
 
 ## Nächste Schritte
 
-- [ ] ADR-001: MCU-Auswahl finalisieren (TTGO vs. Heltec)
-- [ ] ADR-002: Kommunikationsprotokoll (LoRaWAN vs. proprietär)
-- [ ] Prototyp Schaltplan in KiCad
-- [ ] Energiebudget mit Messungen validieren
+- [x] ADR-001: MCU-Auswahl → ESP32 (TTGO/Heltec) statt STM32 — siehe [ADR-001](ADR-001-MCU-Auswahl.md)
+- [x] ADR-002: Kommunikationsprotokoll → LoRaWAN (TTN) statt proprietär — siehe [ADR-001](ADR-001-MCU-Auswahl.md)
+- [ ] Prototyp v0.0 Fritzing-Schaltplan archivieren in `hardware/schematics/v0.0-prototype-fritzing.png`
+- [ ] Schaltplan v0.1 in KiCad (ESP32 + BME280 + Bodenfeuchte + Pumpe)
+- [ ] Energiebudget mit Messungen am echten Node validieren
 - [ ] Gehäuse-Konzept (IP65 Schutzklasse)

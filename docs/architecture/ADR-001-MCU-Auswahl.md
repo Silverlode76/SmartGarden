@@ -1,0 +1,107 @@
+# ADR-001: MCU & LoRa Modul Auswahl
+
+**Status:** Entschieden  
+**Datum:** 2026-05-24  
+**Autor:** Oliver Schmoll
+
+---
+
+## Kontext
+
+Für den SmartGarden Sensor-Node wird ein Mikrocontroller benötigt, der:
+- Sensoren ausliest (Temperatur, Feuchte, Boden)
+- Eine Pumpe / ein Ventil steuert
+- Per LoRa (868 MHz, EU) kommuniziert
+- Im Deep-Sleep energieeffizient ist
+- Solar-betrieben über längere Zeit autonom läuft
+
+### Prototyp-Erfahrung (v0.0)
+
+Ein erster Prototyp wurde gebaut mit:
+- **MCU:** STM32 (Nano-Formfaktor, Debug-UART auf PB10/PB11)
+- **LoRa:** SX1276 Breakout-Modul (433/868 MHz)
+- **Sensor:** BME280 (Temperatur, Luftfeuchte, Luftdruck) via I2C
+- **Energie:** 2× Solarpanel (6V) → MPPT-Laderegler → TP4056 → LiPo 110mAh 3.7V
+- **Protokoll:** Eigenes LoRa-Protokoll auf 868 MHz (kein LoRaWAN)
+- **Design:** Fritzing-Aufbau auf Lochrasterplatine
+
+**Ergebnis Prototyp:**
+- ✅ STM32 + SX1276 grundsätzlich funktionsfähig
+- ✅ 868 MHz Kommunikation erfolgreich
+- ✅ BME280 liefert gute Messwerte (besser als DHT22: zusätzlich Luftdruck, genauer)
+- ⚠️ Erheblicher Lötaufwand beim SX1276 Breakout auf Lochraster
+- ⚠️ STM32 Toolchain aufwändig (STM32CubeIDE, HAL, manuelle Library-Integration)
+- ⚠️ Eigenes Protokoll skaliert nicht — kein TTN, kein gemeinsamer Vereins-Gateway möglich
+- ⚠️ LiPo 110mAh deutlich zu klein für autonomen Betrieb
+
+---
+
+## Entscheidung
+
+### MCU: Wechsel zu ESP32 für v0.1+
+
+| Kriterium | STM32 (Prototyp) | ESP32 (Heltec / TTGO) | Gewichtung |
+|---|---|---|---|
+| Prototyp-Erfahrung | ✅ vorhanden | ❌ neu | mittel |
+| Toolchain-Aufwand | ❌ hoch | ✅ Arduino/PlatformIO | hoch |
+| LoRa integriert | ❌ separates Modul + Löten | ✅ onboard SX1276 | hoch |
+| Deep Sleep | ✅ ~1 µA | ✅ ~10 µA (ausreichend) | niedrig* |
+| OTA-Updates | ⚠️ aufwändig | ✅ built-in WiFi+OTA | hoch |
+| Community & Libs | ⚠️ professionell, weniger Maker | ✅ riesig, viele Beispiele | mittel |
+| Entwicklungsgeschwindigkeit | ❌ langsam | ✅ schnell | hoch |
+
+*\*Energiebudget zeigt 105 Tage Autonomie mit Solar — Deep-Sleep-Unterschied irrelevant*
+
+**Empfehlung:** TTGO LoRa32 V2.1 (~15€) oder Heltec WiFi LoRa 32 V3 (~18€)  
+Beide haben **ESP32 + SX1276 onboard** — kein manuelles Löten des LoRa-Moduls nötig.
+
+### LoRa-Protokoll: Wechsel zu LoRaWAN
+
+| | Eigenes Protokoll (Prototyp) | LoRaWAN (TTN) |
+|---|---|---|
+| Gateway nötig | Eigener Gateway zwingend | TTN-Community-Gateways nutzbar |
+| Vereins-Gateway | ❌ schwer umsetzbar | ✅ Standard, einfach teilbar |
+| Reichweite / SF | Manuell verwalten | Automatisch (ADR) |
+| Sicherheit | Selbst implementieren | AES-128 built-in |
+| Skalierung | ❌ | ✅ |
+
+**Empfehlung:** LoRaWAN über The Things Network (TTN) — kostenlos, EU868, direkt auf Vereins-Gateway-Anforderung ausgelegt.
+
+### Sensor: BME280 statt DHT22
+
+Der Prototyp hat gezeigt, dass der **BME280** dem DHT22 überlegen ist:
+
+| | DHT22 | BME280 |
+|---|---|---|
+| Interface | 1-Wire | I2C / SPI |
+| Messgrößen | Temp + Feuchte | Temp + Feuchte + **Luftdruck** |
+| Genauigkeit Temp | ±0.5°C | ±0.5°C |
+| Genauigkeit Feuchte | ±2–5% | ±3% |
+| Preis | ~3€ | ~3–5€ |
+| Fazit | — | ✅ bevorzugt |
+
+**Entscheidung:** BME280 als Standard-Sensor in allen Nodes.
+
+### Akku: Upgrade auf 18650
+
+Der Prototyp-Akku (110mAh LiPo) war zu klein. Für den produktionsnahen Prototyp:
+- **2× 18650 LiPo (~6000mAh)** — ~105 Tage Autonomie ohne Solar
+- Passender Halter + TP4056 mit DW01 Schutz-IC
+
+---
+
+## Konsequenzen
+
+- `hardware-overview.md` wird auf ESP32 + BME280 aktualisiert
+- Firmware-Basis: PlatformIO + Arduino Framework + MCCI LoRaWAN LMIC Library
+- SX1276 wird nicht mehr separat gelötet — Breakout-Board via TTGO/Heltec
+- Eigenes Protokoll wird nicht weiterentwickelt
+- Prototyp-Schaltplan (Fritzing) wird in `hardware/schematics/` archiviert als `v0.0-prototype-fritzing.png`
+
+---
+
+## Verworfene Alternativen
+
+- **STM32 + separater SX1276:** Funktioniert (belegt), aber Lötaufwand und Toolchain-Komplexität sprechen dagegen für Rapid Prototyping
+- **STM32 + eigenes Protokoll:** Skaliert nicht, kein TTN/Vereins-Gateway möglich
+- **Arduino Uno/Nano:** Zu wenig RAM/Flash, kein Deep Sleep
