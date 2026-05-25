@@ -32,7 +32,10 @@ Ein erster Prototyp wurde gebaut mit:
 - ⚠️ Erheblicher Lötaufwand beim SX1276 Breakout auf Lochraster
 - ⚠️ STM32 Toolchain aufwändig (STM32CubeIDE, HAL, manuelle Library-Integration)
 - ⚠️ Eigenes Protokoll skaliert nicht — kein TTN, kein gemeinsamer Vereins-Gateway möglich
-- ⚠️ LiPo 110mAh deutlich zu klein für autonomen Betrieb
+- ❌ Schwachlicht-Problem: Node wurde bei schwacher Sonne nicht ausreichend geladen
+     → Ursache war **nicht** die Akkugröße (1× 18650 = ~44 Tage Autonomie)
+     → Ursache: TP4056 benötigt min. ~4,5V, kleine Panels fallen bei Bewölkung darunter
+     → Zudem kein MPPT → schlechter Wirkungsgrad bei diffusem Licht
 
 ---
 
@@ -82,11 +85,36 @@ Der Prototyp hat gezeigt, dass der **BME280** dem DHT22 überlegen ist:
 
 **Entscheidung:** BME280 als Standard-Sensor in allen Nodes.
 
-### Akku: Upgrade auf 18650
+### Akku & Ladekette: Komplettes Redesign
 
-Der Prototyp-Akku (110mAh LiPo) war zu klein. Für den produktionsnahen Prototyp:
-- **2× 18650 LiPo (~6000mAh)** — ~105 Tage Autonomie ohne Solar
-- Passender Halter + TP4056 mit DW01 Schutz-IC
+Der Prototyp zeigte zwei kombinierte Probleme beim Laden bei Schwachlicht:
+
+**Batterie im Prototyp:** 1× 18650 (~2500mAh) → ~44 Tage Autonomie ohne Sonne.
+Die Kapazität war **nicht** die Ursache des Schwachlicht-Problems.
+
+**Eigentliche Ursache — Ladekette:**
+- TP4056 benötigt min. ~4,5V Eingang → kleine Panels fallen bei Bewölkung darunter → kein Laden
+- Kein MPPT → schlechter Wirkungsgrad bei diffusem Licht
+- Solarpanels im Prototyp zu klein dimensioniert
+
+**Lösung v0.1:**
+- CN3791 MPPT-Laderegler (startet ab ~4V, maximiert Ladeleistung auch bei Schwachlicht)
+- 6W 6V Solarpanel (ausreichend Strom auch bei Bewölkung)
+- Optional: 2× 18650 parallel (~5000mAh) für mehr Sicherheitspuffer (~88 Tage)
+
+```
+[6W 6V Solarpanel]
+       |
+  [CN3791 MPPT]  ← effizienter Schwachlichtbetrieb
+       |
+[2× 18650 parallel]  ← 6000mAh Puffer
+       |
+  [DW01 Schutz]
+       |
+  [MT3608 3.3V]
+       |
+   [ESP32 Node]
+```
 
 ---
 

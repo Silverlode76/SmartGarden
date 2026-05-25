@@ -1,10 +1,22 @@
 # 🌱 SmartGarden
 
-> Autarkes IoT-System für Schrebergärten — Solar-betrieben, LoRaWAN-vernetzt, mit Einbrucherkennung.
+> **Off-Grid Smart Irrigation** — Solar-betrieben, LoRaWAN-vernetzt, mit Einbrucherkennung.
+> Für jeden Ort ohne Strom, ohne WLAN und ohne Wasseranschluss.
 
 ## Warum SmartGarden?
 
-Bestehende Systeme wie MIYO benötigen WLAN und einen Stromanschluss — beides fehlt in den meisten Schrebergärten. SmartGarden ist von Grund auf für diese Umgebung gebaut.
+Schrebergärten, Wochenendhütten, Jagdhütten, Ferienhäuser — überall dort wo es **Off-Grid** zugeht:
+
+- ❌ Kein Stromanschluss
+- ❌ Kein WLAN
+- ❌ Kein Wasseranschluss mit Druck
+- ✅ Wasserfässer / Regentonnen
+
+Bestehende Systeme versagen hier:
+- **MIYO** braucht einen Wasserhahn mit Druck — funktioniert am Fass nicht
+- **Gardena AquaBloom** hat eine Pumpe, aber keine App, keine Sensorik, kein Alarm
+
+SmartGarden ist das erste **Off-Grid Smart Irrigation System**: Eine 12V Tauchpumpe fördert Wasser aktiv aus dem Fass, LoRaWAN überträgt Daten ohne WLAN, Solar versorgt alles — und die App informiert dich über Bewässerung und Einbruch, egal wo du bist.
 
 ## Alleinstellungsmerkmale
 
@@ -12,6 +24,7 @@ Bestehende Systeme wie MIYO benötigen WLAN und einen Stromanschluss — beides 
 |---|---|---|
 | Solar / batterielos | ✅ | ✅ |
 | Ohne WLAN nutzbar | ✅ | ✅ |
+| **Pumpe für Regentonne / Fass** | ❌ | ✅ |
 | Einbruchalarm per App | ❌ | ✅ |
 | PIR-Bewegungserkennung | ❌ | ✅ |
 | Zielgruppe Schrebergarten | teilweise | direkt |
@@ -20,13 +33,20 @@ Bestehende Systeme wie MIYO benötigen WLAN und einen Stromanschluss — beides 
 ## Systemübersicht
 
 ```
-[Solar + LiOn]
+[Wasserfass / Regentonne]
       |
-[ESP32 + LoRa-Modul]
-      |--- [Temp/Feuchte-Sensor]
-      |--- [Bodenfeuchtesensor]
-      |--- [PIR-Bewegungsmelder]
-      |--- [12V Pumpe / Ventil]
+[12V Tauchpumpe]  <-- fördert Wasser aktiv, kein Wasseranschluss nötig
+      |
+      +---------------------------+
+      |                           |
+[Solar + 2×18650]                 |
+      |                           |
+[ESP32 + LoRa-Modul]              |
+      |--- [BME280 Temp/Feuchte/Druck]
+      |--- [Bodenfeuchtesensor kapazitiv]
+      |--- [AM312 PIR-Bewegungsmelder]
+      |--- [SW-420 Erschütterung]
+      |--- [Pumpensteuerung MOSFET] ---+
       |
 [LoRaWAN Gateway]  <-- gemeinsam im Verein nutzbar
       |

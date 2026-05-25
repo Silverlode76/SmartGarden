@@ -15,14 +15,16 @@
 | Solar | 2× Solarpanel | ~6V in Reihe/parallel |
 | Laderegler | MPPT-Modul (grün) | 6V → 7V |
 | Akku-Lader | TP4056 (blau, mit USB) | |
-| Akku | 6SP 061225 LiPo 110mAh 3.7V | Zu klein für Produktion → 18650 geplant |
+| Akku | 18650 3.7V (~2500mAh) | Fritzing-Label "110mAh" war Platzhalter — realer Akku war 18650 |
 
 ### Erkenntnisse aus v0.0
 
 - ✅ STM32 + SX1276 auf 868 MHz grundsätzlich funktionsfähig
 - ✅ BME280 liefert gute Messwerte
 - ⚠️ SX1276 Breakout auf Lochraster: erheblicher Lötaufwand
-- ⚠️ 110mAh LiPo: zu gering für autonomen Betrieb
+- ❌ Schwachlicht-Problem: Node wurde nicht ausreichend geladen (Akku war 18650 — nicht die Ursache!)
+- ❌ Ursache: TP4056 braucht min. ~4,5V, kleine Panels fallen bei Bewölkung darunter → Ladestopp
+- ❌ Kein MPPT: schlechter Wirkungsgrad bei diffusem Licht
 - ⚠️ Eigenes LoRa-Protokoll: nicht kompatibel mit TTN/Vereins-Gateway
 
 → Für v0.1: Wechsel auf TTGO LoRa32 (ESP32 + SX1276 integriert), LoRaWAN, 2× 18650

@@ -1,0 +1,26 @@
+Reference,Value,Description,Footprint,Quantity,Unit Price (EUR),Supplier,Order No.,Notes
+U1,TTGO LoRa32 V2.1,ESP32 + SX1276 LoRa integriert,Module_TTGO_LoRa32,1,15.00,AliExpress,,868 MHz / 915 MHz Version wählen
+U2,CN3791,MPPT Solar LiIon Charger IC,SOT-23-6,1,0.80,LCSC,C89358,Vin 4-7V; alternativ CN3791A
+U3,DW01A,LiIon Battery Protection IC,SOT-23-6,1,0.20,LCSC,C351410,OVP/UVP/OCP
+Q1,FS8205A,Dual N-Channel MOSFET (Battery Protection),SOT-23-6,1,0.20,LCSC,C32254,Zusammen mit DW01A
+Q2,IRLZ44N,N-Channel MOSFET Logic Level,TO-220,1,0.80,Reichelt,,Pumpensteuerung 12V; Gate 3.3V kompatibel
+U4,XL6009,Boost Converter 3.7V → 12V,SOP-8,1,1.50,AliExpress,,Modul mit Spulen empfohlen
+D1,SS14,Schottky Diode 40V 1A,SMA (DO-214AC),1,0.15,Reichelt,SS14,,Rückstromschutz Solar
+U5,BME280,Temperatur/Feuchte/Luftdruck Sensor,LGA-8,1,3.50,AliExpress,,GY-BME280 Breakout empfohlen
+U6,AM312,PIR Bewegungssensor 3.3V,TO-5 (Modul),1,1.50,AliExpress,,3.3V kompatibel; Ersatz für HC-SR501
+SW1,SW-420,Erschütterungssensor,Through-Hole Modul,1,0.80,AliExpress,,Für Türen/Fenster
+S1,Capacitive Soil v1.2,Kapazitiver Bodenfeuchtesensor,Module,1,3.00,AliExpress,,Kein Rost; resistive vermeiden
+BT1,18650 x2,LiIon Akku 3.7V ~2500mAh je Zelle,2×18650 Halter,2,4.00,Reichelt,,Gleiche Zellen / Charge; parallel (2P)
+R1,100Ω,MPPT-Widerstand CN3791,0402,1,0.05,LCSC,,VIN zu MPPT Pin CN3791
+R2,1kΩ,PROG-Widerstand CN3791 (1A Ladestrom),0402,1,0.05,LCSC,,R = 1000 / I_charge
+R3,100kΩ,Spannungsteiler Akku-ADC oben,0402,1,0.05,LCSC,,GPIO35 Spannungsmessung
+R4,100kΩ,Spannungsteiler Akku-ADC unten,0402,1,0.05,LCSC,,
+R5,1kΩ,Gate-Widerstand MOSFET Q2,0402,1,0.05,LCSC,,
+C1,10µF,Eingangs-Elko CN3791,0805,1,0.10,LCSC,,Kerko bevorzugt
+C2,10µF,Ausgangs-Elko CN3791,0805,1,0.10,LCSC,,
+J1,Conn_2Pin,Solarpanel Anschluss,JST-PH-2,1,0.30,Reichelt,,
+J2,Conn_2Pin,Akku-Pack Anschluss,JST-PH-2,1,0.30,Reichelt,,
+J3,Conn_2Pin,Pumpe / Magnetventil 12V,JST-VH-2,1,0.50,Reichelt,,Höherer Strom
+J4,Conn_2Pin,Bodenfeuchte Sensor,JST-PH-2,1,0.30,Reichelt,,
+
+TOTAL (geschätzt),,,,,,,,~35 EUR (ohne TTGO; mit TTGO ~50 EUR)
