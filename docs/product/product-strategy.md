@@ -1,193 +1,314 @@
 # SmartGarden — Produktstrategie & Portfolio
 
 > **Stand:** 2026-05  
-> **Status:** Draft v0.1
+> **Status:** Draft v0.2
 
 ---
 
 ## Vision
 
-SmartGarden ist das erste **Off-Grid Smart Gardening Ökosystem** —
-eine Familie spezialisierter Nodes, die überall dort funktionieren wo es
-kein Strom, kein WLAN und keinen Wasseranschluss gibt.
+SmartGarden ist ein **Off-Grid IoT Ökosystem** aus zwei unabhängigen Produktlinien,
+die überall dort funktionieren wo es kein Strom, kein WLAN und keine Infrastruktur gibt.
+
+```
+SmartGarden
+├── 🌱 Garden  — automatisch bewässern
+└── 🔒 Guard   — sofort alarmieren
+```
+
+Beide Linien nutzen dieselbe App und dasselbe LoRaWAN-Netzwerk (TTN).
+Die Hardware ist bewusst **spezialisiert** — kein Kompromiss-Gerät für alles.
 
 ---
 
-## Kerninsight: Zwei verschiedene User, zwei Produkte
-
-Die ursprüngliche Idee (alles in einem Node) scheitert an der **Physik**:
-Bewässerung findet am Wasserfass/Beet statt, Einbruchschutz an der Laube/Tür.
-Ein zentraler Node würde lange Kabel in alle Richtungen erfordern.
-
-**Lösung:** Spezialisierte Nodes, die gemeinsam in einer App zusammenspielen.
-
 ---
 
-## Produktportfolio
+# 🌱 Produktlinie: SmartGarden Garden
 
-### 🌱 SmartGarden Irrigator
+> *„Deine Pflanzen werden gegossen — auch wenn du nicht da bist."*
 
-> *„Gieß automatisch — auch wenn du nicht da bist."*
+## Zielgruppe
+
+| Segment | Beschreibung |
+|---|---|
+| Schrebergärtner | Parzelle mit Regentonne, kein Wasseranschluss |
+| Hobbygärtner | Garten am Haus, Urlaub = Pflanzen tot |
+| Gewächshausbesitzer | Konstante Feuchte wichtig, manuelle Kontrolle lästig |
+| Balkongärtner | Keine Zeit zum täglichen Gießen |
+
+## Kern-Problem
+
+Pflanzen gehen ein wenn man nicht da ist.
+Bestehende Lösungen versagen off-grid:
+- **MIYO**: braucht Wasserhahn mit Druck → geht nicht am Fass
+- **Gardena AquaBloom**: hat Pumpe, aber keine App, keine Sensorik
+
+## Produkte
+
+### Garden Home
+*Standard-Bewässerung für eine Parzelle / einen Garten*
 
 | | |
 |---|---|
-| **Zielgruppe** | Schrebergärtner, Hobbygärtner mit Regentonne, Gewächshausbesitzer |
-| **Kern-Problem** | Pflanzen gehen ein wenn man nicht da ist — manuelle Bewässerung vergessen |
-| **Kern-Lösung** | Bodenfeuchte messen → automatisch pumpen → per App kontrollieren |
-| **Hardware** | TTGO LoRa32 + kapazitiver Bodenfeuchtesensor + 12V Tauchpumpe + XL6009 Boost + Solar |
-| **Kommunikation** | LoRaWAN 868 MHz (TTN) |
-| **Stromversorgung** | 6W Solar + 2× 18650 — autark |
-| **Zielpreis** | ~65€ |
-| **BOM-Kosten** | ~38€ |
-| **Bruttomarge** | ~42% |
+| **Preis** | ~65€ |
+| **BOM** | ~38€ |
+| **Einsatz** | 1 Bewässerungszone, 1 Bodenfeuchtesensor |
 
-**Warum kaufen Kunden das?**
-- Gardena AquaBloom hat Pumpe, aber keine App und keine Sensorik
-- MIYO hat App + Sensor, aber braucht Wasserhahn mit Druck (geht nicht am Fass!)
-- SmartGarden Irrigator ist das **einzige System** das App + Sensor + Pumpe + kein Wasserhahn kombiniert
+**ECU — Irrigator Node:**
+```
+[TTGO LoRa32 V2.1]
+  GPIO12  → [R5 1kΩ] → [IRLZ44N Gate]  → Pumpensteuerung
+  GPIO33  → Bodenfeuchte VCC (schaltbar)
+  GPIO34  ← Bodenfeuchte AOUT (ADC)
+  GPIO35  ← VBAT Spannungsteiler (ADC)
+  GPIO21/22 → I2C (optional: BME280)
+  
+[XL6009 Boost]  3,7V → 12V  → [12V Tauchpumpe]
+[TP4056 Modul]  Solar / USB  → [2× 18650]
+```
+
+**Sensor-Set:**
+- Kapazitiver Bodenfeuchtesensor v1.2
+- Optional: BME280 (Temp/Feuchte/Luftdruck)
+
+**Bewässerungslogik:**
+```
+alle 15 Min:
+  Bodenfeuchte messen
+  wenn Feuchte < Schwellwert (z.B. 40%):
+    Pumpe 30 Sek. an
+  Daten per LoRaWAN senden
+  Deep Sleep
+```
 
 ---
 
-### 🔒 SmartGarden Guard
-
-> *„Weißt du immer was in deiner Laube passiert."*
+### Garden Pro *(Phase 3)*
+*Mehrere Zonen, mehrere Beete*
 
 | | |
 |---|---|
-| **Zielgruppe** | Laubenbesitzer, Wochenendhaus, Jagdhütte, Ferienwohnung off-grid |
-| **Kern-Problem** | Einbrüche in Gartenlauben nehmen zu — keine Alarmanlage ohne Strom/WLAN möglich |
-| **Kern-Lösung** | Bewegung + Erschütterung erkennen → sofortiger Push-Alarm aufs Handy |
-| **Hardware** | TTGO LoRa32 + AM312 PIR + SW-420 Vibrationssensor + BME280 + Solar |
-| **Kommunikation** | LoRaWAN 868 MHz (TTN) |
-| **Stromversorgung** | 6W Solar + 2× 18650 — autark, **Jahre ohne Wartung** |
-| **Zielpreis** | ~45€ |
-| **BOM-Kosten** | ~25€ |
-| **Bruttomarge** | ~44% |
-
-**Warum kaufen Kunden das?**
-- Bestehende Alarmanlagen brauchen Strom + WLAN — off-grid unmöglich
-- GSM-Alarmanlagen brauchen SIM-Karte + monatliche Kosten
-- SmartGarden Guard nutzt das **Vereins-Gateway** (ein Gateway = alle Parzellen geschützt)
+| **Preis** | ~120€ |
+| **Einsatz** | bis zu 4 Bewässerungszonen, 4 Bodenfeuchtesensoren |
+| **Neu** | Mehrkanal-MOSFET, größeres Solar-Panel (10W), größerer Akku |
 
 ---
 
-### 🌱🔒 SmartGarden Bundle
-
-> *„Das Komplett-Set für den Kleingarten."*
-
-| | |
-|---|---|
-| **Zielgruppe** | Schrebergärtner MIT Laube (~80% aller Parzellen) |
-| **Inhalt** | 1× Irrigator + 1× Guard + gemeinsame App |
-| **Zielpreis** | ~100€ (statt ~110€ einzeln) |
-| **USP** | Eine App, ein Gateway, alles vernetzt |
-
----
-
-## Positionierung im Wettbewerb
-
-| Feature | MIYO LoRaWAN | Gardena AquaBloom | **Irrigator** | **Guard** | **Bundle** |
-|---|---|---|---|---|---|
-| Pumpe (kein Wasserhahn) | ❌ | ✅ | ✅ | — | ✅ |
-| Solar / autark | ✅ | ✅ | ✅ | ✅ | ✅ |
-| App / Fernzugriff | ✅ | ❌ | ✅ | ✅ | ✅ |
-| Bodenfeuchtesensor | ✅ | ❌ | ✅ | — | ✅ |
-| LoRaWAN (kein WLAN) | ✅ | ❌ | ✅ | ✅ | ✅ |
-| Einbruchalarm / PIR | ❌ | ❌ | — | ✅ | ✅ |
-| Vereins-Gateway | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Open Source | ❌ | ❌ | ✅ | ✅ | ✅ |
-| **Preis** | ~250€ | ~80€ | **~65€** | **~45€** | **~100€** |
-
----
-
-## Zielgruppen & Segmente
-
-### Primär: Schrebergärtner Deutschland
+## Garden — Markt & Zahlen
 
 | Kennzahl | Wert |
 |---|---|
 | Schrebergarten-Parzellen DE | ~1,4 Mio. |
-| Parzellen mit Laube (~80%) | ~1,12 Mio. |
-| Technikaffine Early Adopter (15%) | ~168.000 |
-| Zahlungsbereit (40% davon) | ~67.000 |
+| Hobbygärten mit Regentonne (Schätzung) | ~2,0 Mio. |
+| **TAM Deutschland** | **~3,4 Mio. Standorte** |
+| Technikaffine Early Adopter (15%) | ~510.000 |
+| Zahlungsbereit ~65€ (40%) | ~204.000 |
+| **Realistisch Jahr 1–2 (3%)** | **~6.000 Einheiten** |
 
-### Sekundär: Off-Grid Hütten & Häuser
+**Umsatzpotenzial Jahr 1–2:** ~390.000€ (6.000 × 65€)  
+**Bruttomarge:** ~42% → ~164.000€
 
-| Segment | Anzahl DE |
+---
+
+---
+
+# 🔒 Produktlinie: SmartGarden Guard
+
+> *„Du weißt sofort wenn jemand kommt — nicht erst beim nächsten Kontrollgang."*
+
+## Das Wildkamera-Problem
+
+Viele Besitzer installieren Wildkameras gegen Diebstahl:
+- ✅ Foto vorhanden
+- ❌ Benachrichtigung erst beim nächsten Kontrollgang
+- ❌ Dieb ist längst weg
+
+**Guard löst das eigentlich wichtigere Problem:**
+Push-Alarm in dem Moment wo jemand eindringt — während man noch reagieren kann.
+
+```
+Wildkamera:  Dieb kommt → Foto ✅ → Besitzer findet es TAGE SPÄTER ❌
+Guard:       Dieb kommt → kein Foto → Push-Alarm SOFORT ✅ → Polizei kommt noch
+Guard + Cam: Dieb kommt → Foto ✅  → Push-Alarm SOFORT ✅ → beste Lösung
+```
+
+## Zielgruppen & Einsatzgebiete
+
+| Segment | Problem | Marktgröße DE |
+|---|---|---|
+| 🏡 Laubenbesitzer | Einbruch in Gartenlaube | ~1,12 Mio. |
+| 🍇 Winzer | Wilddiebstahl ganze Ernte | ~20.000 Betriebe |
+| 🌲 Waldbesitzer / Forstbetriebe | Holzdiebstahl | ~2 Mio. Waldbesitzer |
+| 🏗️ Baustellen | Bagger, Generatoren, Werkzeug gestohlen | ~400.000 Baustellen/Jahr |
+| 🚜 Landwirtschaft | Traktoren, Anhänger, Ernte | ~250.000 Betriebe |
+| ⛺ Ferienhäuser / Jagdhütten | Einbruch in unbewohnte Gebäude | ~370.000 |
+
+## Produkte
+
+### Guard Home
+*Einbruchschutz für Laube, Keller, Schuppen*
+
+| | |
 |---|---|
-| Wochenendhütten | ~200.000 |
-| Jagdhütten | ~50.000 |
-| Ferienhäuser off-grid | ~120.000 |
-| **Zusatz-TAM** | **~370.000** |
+| **Preis** | ~45€ |
+| **BOM** | ~25€ |
+| **Einsatz** | 1 Gebäude, Tür/Fenster-Montage |
 
----
-
-## Go-to-Market Strategie
-
-### Phase 1 — DIY & Community (2026)
-- Open Source auf GitHub → Maker-Community baut nach
-- YouTube / Blogs: „Ich habe meinen Schrebergarten smart gemacht"
-- Reddit: r/DIYIOT, r/homeautomation, dt. Maker-Foren
-- Ziel: 100 aufgebaute Nodes in der Community
-
-### Phase 2 — Kleingartenvereine (2026–2027)
-- Ein Verein = 1 Gateway → deckt alle Parzellen
-- Bundle-Deal: Verein kauft Gateway + 10 Nodes zum Einführungspreis
-- Virales Wachstum: 1 begeisterter Gärtner → 5 Nachbarn kaufen auch
-- Ziel: 10 Pilotvereine, 500 Nodes
-
-### Phase 3 — Amazon / Retail (2027)
-- FBA (Fulfillment by Amazon): geringer Logistikaufwand
-- Einzelhandel: Hornbach, toom Baumarkt (Gartenabteilung)
-- Ziel: 5.000 Nodes/Jahr
-
-### Phase 4 — OEM / Lizenz (2028+)
-- Hardware-Design lizenzieren an Gartengerätehersteller
-- White-Label für Kleingärtner-Verbände
-- Ziel: Lizenzeinnahmen ohne eigene Fertigung
-
----
-
-## Produktentwicklungs-Roadmap
-
+**ECU — Guard Node:**
 ```
-v0.2  (2026 Q2)  →  Irrigator Prototyp
-                      Pumpe + Bodenfeuchte + LoRaWAN + Deep Sleep
+[TTGO LoRa32 V2.1]
+  GPIO13  ← AM312 PIR OUT
+  GPIO14  ← SW-420 Vibration OUT
+  GPIO21/22 → I2C BME280 (Temp/Feuchte)
+  GPIO35  ← VBAT Spannungsteiler (ADC)
 
-v0.3  (2026 Q3)  →  Guard Prototyp
-                      PIR + Vibration + Push-Alarm + LoRaWAN
+[TP4056 Modul]  Solar / USB  → [2× 18650]
+Kein XL6009, kein MOSFET, kein Boost  → einfacher, günstiger
+```
 
-v0.4  (2026 Q3)  →  App MVP
-                      Flutter: beide Nodes in einer UI, Push-Notifications
+**Alarm-Logik (Fehlalarm-Prävention):**
+```
+Alarm NUR wenn:
+  PIR auslöst UND SW-420 innerhalb 10 Sek. auslöst
+  (AND-Logik = drastisch weniger Fehlalarme)
 
-v0.5  (2026 Q4)  →  Feldtest
-                      3 Schrebergärten Pilotbetrieb (Irrigator + Guard)
+PIR allein (Tier, Ast) → kein Alarm, nur log
+Vibration allein (Wind, Regen) → kein Alarm, nur log
+Beide zusammen → Push-Alarm sofort
 
-v1.0  (2027 Q1)  →  Markteinführung
-                      Bundle: App Store + Amazon FBA
++ Nutzer definiert Aktivzeiten (z.B. 20:00–07:00)
++ PIR muss 2× innerhalb 10s auslösen (Bestätigungspuls)
 ```
 
 ---
 
-## Kritische Annahmen
+### Guard Field
+*Perimeter-Schutz für Weinberg, Holzlager, Forstwirtschaft*
 
-1. **LoRaWAN-Abdeckung:** TTN-Gateway muss im/nahe dem Verein verfügbar sein
-   oder Verein kauft eigenes Gateway (~80€) → Vereinsmodell trägt das
-2. **Zahlungsbereitschaft:** Schrebergärtner zahlen ~65€ für Bewässerungsautomatik
-   → Vergleich: Gardena AquaBloom ~80€ ohne App/Sensor → plausibel
-3. **Pumpe funktioniert mit Regentonne:** Ansaughöhe, Förderhöhe, Wasserqualität
-   → im Feldtest zu validieren (v0.3)
-4. **LoRaWAN-Reichweite reicht für Verein:** SF9, 868 MHz, ~1–2km Reichweite
-   → ein Gateway pro Verein (typisch 2–5 ha Fläche) sollte reichen
+| | |
+|---|---|
+| **Preis** | ~80€ |
+| **BOM** | ~45€ |
+| **Neu gegenüber Home** | Externer Antennenanschluss (längere Reichweite), größeres Solar (10W), IP67-Gehäuse, Kamera-Trigger-Ausgang |
+
+**ECU — Guard Field Node:**
+```
+[TTGO LoRa32 V2.1]  mit externer LoRa-Antenne
+  GPIO13  ← AM312 PIR #1
+  GPIO14  ← SW-420 Vibration
+  GPIO15  ← AM312 PIR #2  (zweite Richtung)
+  GPIO12  → Optokoppler → Wildkamera Trigger  ← NEU
+  GPIO21/22 → I2C BME280
+
+[6W Solar + 4× 18650]  → längere Autonomie
+[IP67 Gehäuse]
+```
+
+**Wildkamera-Integration:**
+```
+Guard Field erkennt Eindringling
+  → GPIO12 HIGH (50ms Puls)
+  → Optokoppler schließt Wildkamera-Shutter-Kontakt
+  → Wildkamera macht Foto (lokal auf SD)
+  → Guard sendet LoRaWAN-Alarm mit Zeitstempel
+  → Nutzer sieht Alarm + kann zur Kamera gehen für Beweisfoto
+
+Kompatibel mit: günstigen Wildkameras (~30–50€) mit ext. Trigger
+```
 
 ---
 
-## Risiken
+### Guard Asset *(Phase 4)*
+*Diebstahlschutz für bewegliche Objekte: Baumaschinen, Traktoren, Anhänger*
 
-| Risiko | Wahrscheinlichkeit | Impact | Mitigation |
+| | |
+|---|---|
+| **Preis** | ~95€ |
+| **Neu** | GPS-Modul (NEO-6M), LTE-Backup wenn kein LoRa |
+| **Logik** | Erschütterung → GPS-Position → Alarm + Live-Tracking |
+
+**ECU — Asset Tracker Node:**
+```
+[ESP32 + SX1262 LoRa]  oder Heltec LoRa32
+  + [NEO-6M GPS]  → Position
+  + [ADXL345 Beschleunigungssensor]  → Bewegungserkennung
+  + [SIM800L]  → GSM Fallback wenn kein TTN-Gateway in der Nähe
+
+Eingebaut in wasserdichtes Gehäuse, magnetisch befestigt
+```
+
+> ⚠️ Guard Asset ist ein anderes Produkt-Paradigma (B2B, Versicherung, Fleet).
+> Separates Projekt-Backlog empfohlen.
+
+---
+
+## Guard — Markt & Zahlen
+
+| Segment | TAM | SAM (technikaffin) |
+|---|---|---|
+| Laubenbesitzer | 1,12 Mio. | ~168.000 |
+| Winzer + Landwirtschaft | 270.000 Betriebe | ~40.000 |
+| Baustellen (B2B) | 400.000/Jahr | ~20.000 |
+| Waldbesitzer + Jagd | 2,4 Mio. | ~50.000 |
+| **Guard gesamt TAM** | **~4,2 Mio.** | **~278.000** |
+
+**Umsatzpotenzial Guard Home Jahr 1–2:**  
+5.000 Einheiten × 45€ = **225.000€** / Marge ~44% = **99.000€**
+
+---
+
+---
+
+# Gemeinsame Infrastruktur
+
+## App (eine App für beide Linien)
+
+```
+SmartGarden App
+├── Meine Geräte
+│   ├── 🌱 Garden Home — Parzelle Nord
+│   │     Feuchte: 42% · Pumpe: aus · Akku: 87%
+│   └── 🔒 Guard Home — Laube
+│         Status: Aktiv · Letzte Bewegung: gestern 22:14
+├── Alarme
+│   └── 🔴 22:14 — Bewegung + Erschütterung (Laube)
+└── Einstellungen
+      Aktivzeiten · Schwellwerte · Benachrichtigungen
+```
+
+## LoRaWAN Gateway (Vereinsmodell)
+
+```
+1 Gateway (~80€) im Kleingartenverein
+  → deckt alle Parzellen (2–5 ha Radius)
+  → alle Mitglieder nutzen denselben Gateway
+  → Verein kauft Gateway, Mitglieder kaufen Nodes
+  → Virales Wachstum: 1 Pilot → ganzer Verein
+```
+
+---
+
+# Roadmap
+
+| Version | Zeitraum | Inhalt |
+|---|---|---|
+| `v0.2` | 2026 Q2 | Garden Home Prototyp: Pumpe + Feuchte + LoRaWAN |
+| `v0.3` | 2026 Q3 | Guard Home Prototyp: PIR + Vibration + AND-Logik |
+| `v0.4` | 2026 Q3 | App MVP: beide Nodes, Push-Alarm |
+| `v0.5` | 2026 Q4 | Feldtest: 3 Schrebergärten (Garden + Guard) |
+| `v0.6` | 2027 Q1 | Guard Field: externe Antenne + Wildkamera-Trigger |
+| `v1.0` | 2027 Q2 | Markteinführung: Bundle + Amazon FBA |
+| `v1.5` | 2027 Q4 | Garden Pro: Mehrkanal-Bewässerung |
+| `v2.0` | 2028 | Guard Asset: GPS + GSM für Baumaschinen/Traktoren |
+
+---
+
+# Kritische Annahmen
+
+| # | Annahme | Risiko | Validierung |
 |---|---|---|---|
-| LoRaWAN-Coverage fehlt | Mittel | Hoch | Vereins-Gateway-Paket anbieten |
-| Pumpe versagt im Feldtest | Niedrig | Hoch | 2 Pumpenmodelle testen (v0.3) |
-| Gardena kopiert Konzept | Mittel | Mittel | Open Source = Community-Moat |
-| Preis zu hoch für Zielgruppe | Niedrig | Hoch | Bundle-Rabatt, Ratenzahlung |
-| Akku-Lebensdauer < 1 Saison | Niedrig | Hoch | Energiebudget bereits berechnet: 88 Tage ohne Solar |
+| 1 | Nutzer zahlen ~65€ für Bewässerung | Mittel | Prototyp + 5 Nutzerinterviews |
+| 2 | AND-Logik reduziert Fehlalarme ausreichend | Hoch | Feldtest v0.3 |
+| 3 | LoRaWAN-Reichweite reicht für Weinberg/Baustelle | Mittel | Reichweitentest mit ext. Antenne |
+| 4 | Wildkamera-Trigger funktioniert mit gängigen Modellen | Niedrig | Labortest mit 3 Kameramodellen |
+| 5 | Vereine kaufen Gateway als Gemeinschaft | Mittel | 2 Pilotvereine ansprechen |
