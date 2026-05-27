@@ -1,6 +1,7 @@
 # 🌱 SmartGarden
 
-> **Off-Grid Smart Irrigation** — Solar-betrieben, LoRaWAN-vernetzt, mit Einbrucherkennung.  
+> **Off-Grid Smart Gardening Ökosystem** — Solar-betrieben, LoRaWAN-vernetzt.  
+> Zwei spezialisierte Produkte: **Irrigator** (automatisch bewässern) + **Guard** (Laube überwachen).  
 > Für jeden Ort ohne Strom, ohne WLAN und ohne Wasseranschluss.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -23,44 +24,59 @@ Bestehende Systeme scheitern hier:
 - **MIYO** — braucht Wasserhahn mit Druck, funktioniert am Fass nicht
 - **Gardena AquaBloom** — hat eine Pumpe, aber keine App, keine Sensorik, kein Alarm
 
-## Die Lösung
+## Die Lösung — Zwei spezialisierte Produkte
 
-SmartGarden ist das erste **Off-Grid Smart Irrigation System**:
+Ein Node für alles macht physisch keinen Sinn: Bewässerung ist am Wasserfass,
+Alarm ist an der Laube — in entgegengesetzten Richtungen.
+SmartGarden setzt auf **spezialisierte Nodes** in einer gemeinsamen App.
+
+### 🌱 SmartGarden Irrigator — *für den Gärtner* (~65€)
 
 ```
 [Wasserfass / Regentonne]
       |
 [12V Tauchpumpe]  ← fördert Wasser aktiv, kein Wasserhahn nötig
       |
-[6W Solar + 2×18650]  ← autark, kein Strom nötig
+[6W Solar + 2×18650]  ← autark
       |
-[ESP32 + SX1276 LoRa]  ← sendet ohne WLAN
-      |--- [BME280] Temperatur / Feuchte / Luftdruck
-      |--- [Bodenfeuchte kapazitiv] Bewässerungsentscheidung
-      |--- [AM312 PIR] Einbrucherkennung
-      |--- [SW-420] Erschütterungsalarm
+[TTGO LoRa32]  ← sendet ohne WLAN
+      |--- [Bodenfeuchte kapazitiv] → Bewässerungsentscheidung
       |
-[LoRaWAN Gateway TTN]  ← gemeinsam im Kleingartenverein nutzbar
-      |
-[Cloud Backend]
-      |
-[Smartphone App]  ← Bewässerung steuern + Alarm empfangen
+[LoRaWAN Gateway TTN] → [App]  ← Bewässerung steuern
 ```
+
+### 🔒 SmartGarden Guard — *für den Laubenbesitzer* (~45€)
+
+```
+[Gartenlaube / Tür / Fenster]
+      |
+[6W Solar + 2×18650]  ← autark, Jahre ohne Wartung
+      |
+[TTGO LoRa32]  ← sendet ohne WLAN
+      |--- [AM312 PIR] → Bewegungserkennung
+      |--- [SW-420]    → Erschütterungsalarm
+      |--- [BME280]    → Temperatur / Feuchte
+      |
+[LoRaWAN Gateway TTN] → [App]  ← sofortiger Push-Alarm
+```
+
+### 🌱🔒 SmartGarden Bundle — *Irrigator + Guard* (~100€)
 
 ---
 
 ## Alleinstellungsmerkmale
 
-| Feature | MIYO LoRaWAN | Gardena AquaBloom | **SmartGarden** |
-|---|---|---|---|
-| Pumpe (kein Wasserhahn nötig) | ❌ | ✅ | ✅ |
-| Solar / kein Strom | ✅ | ✅ | ✅ |
-| App / Fernzugriff | ✅ | ❌ | ✅ |
-| Bodenfeuchtesensor | ✅ | ❌ | ✅ |
-| Ohne WLAN (LoRaWAN) | ✅ | ❌ | ✅ |
-| Einbruchalarm / PIR | ❌ | ❌ | ✅ |
-| Vereins-Gateway | ❌ | ❌ | ✅ |
-| Open Source | ❌ | ❌ | ✅ |
+| Feature | MIYO LoRaWAN | Gardena AquaBloom | **Irrigator** | **Guard** |
+|---|---|---|---|---|
+| Pumpe (kein Wasserhahn nötig) | ❌ | ✅ | ✅ | — |
+| Solar / kein Strom | ✅ | ✅ | ✅ | ✅ |
+| App / Fernzugriff | ✅ | ❌ | ✅ | ✅ |
+| Bodenfeuchtesensor | ✅ | ❌ | ✅ | — |
+| Ohne WLAN (LoRaWAN) | ✅ | ❌ | ✅ | ✅ |
+| Einbruchalarm / PIR | ❌ | ❌ | — | ✅ |
+| Vereins-Gateway | ❌ | ❌ | ✅ | ✅ |
+| Open Source | ❌ | ❌ | ✅ | ✅ |
+| **Preis** | ~250€ | ~80€ | **~65€** | **~45€** |
 
 ---
 
@@ -109,6 +125,8 @@ SmartGarden/
 │   ├── architecture/
 │   │   ├── hardware-overview.md      # Vollständige HW-Dokumentation
 │   │   └── ADR-001-MCU-Auswahl.md   # Architecture Decision Record
+│   ├── product/
+│   │   └── product-strategy.md       # Portfolio: Irrigator + Guard + Bundle
 │   ├── requirements/
 │   │   └── agent-prompts.md          # KI-Agenten System Prompts
 │   └── research/
@@ -147,9 +165,11 @@ Details: [`docs/architecture/ADR-001-MCU-Auswahl.md`](docs/architecture/ADR-001-
 
 - [x] `v0.0` — Prototyp: STM32 + SX1276, proprietäres Protokoll *(Erkenntnisse dokumentiert)*
 - [x] `v0.1` — Schaltplan: KiCad Sensor-Node, BOM, Aufbauanleitung
-- [ ] `v0.2` — Firmware: PlatformIO + LoRaWAN (MCCI LMIC) + Deep Sleep
-- [ ] `v0.3` — Feldtest: 3 Schrebergärten im Pilotbetrieb
-- [ ] `v1.0` — MVP: App Store Release + erstes Produktionslos
+- [ ] `v0.2` — **Irrigator** Prototyp: Pumpe + Bodenfeuchte + LoRaWAN + Deep Sleep
+- [ ] `v0.3` — **Guard** Prototyp: PIR + Vibration + Push-Alarm + LoRaWAN
+- [ ] `v0.4` — App MVP: beide Nodes in einer Flutter UI
+- [ ] `v0.5` — Feldtest: 3 Schrebergärten (Irrigator + Guard im Pilotbetrieb)
+- [ ] `v1.0` — Markteinführung: Bundle + App Store + Amazon FBA
 
 ---
 
@@ -159,8 +179,10 @@ Dieses Projekt wird mit spezialisierten KI-Agenten entwickelt:
 
 - **Architekt-Agent** — Hardware, Komponenten, Energiebudget, ADRs
 - **Requirements-Agent** — User Stories, Akzeptanzkriterien, MoSCoW
+- **Business-PM-Agent** — ROI, Marktanalyse, Pricing, Go-to-Market
 
-System Prompts: [`docs/requirements/agent-prompts.md`](docs/requirements/agent-prompts.md)
+System Prompts: [`docs/requirements/agent-prompts.md`](docs/requirements/agent-prompts.md)  
+Produktstrategie: [`docs/product/product-strategy.md`](docs/product/product-strategy.md)
 
 ---
 
