@@ -1,7 +1,7 @@
 # SmartGarden — Produktstrategie & Portfolio
 
 > **Stand:** 2026-05  
-> **Status:** Draft v0.2
+> **Status:** Draft v0.3
 
 ---
 
@@ -18,6 +18,44 @@ SmartGarden
 
 Beide Linien nutzen dieselbe App und dasselbe LoRaWAN-Netzwerk (TTN).
 Die Hardware ist bewusst **spezialisiert** — kein Kompromiss-Gerät für alles.
+
+---
+
+## Hardware-Entwicklungspfad
+
+> **Kernprinzip:** TTGO LoRa32 ist ein Entwicklungsboard, kein Produktionsbauteil.
+> Der Pfad von PoC zu Produkt folgt drei klar getrennten Phasen.
+
+```
+Phase 1 — PoC (jetzt)           Phase 2 — Pilot            Phase 3 — Produktion
+─────────────────────────────   ────────────────────────   ─────────────────────────
+TTGO LoRa32 Dev-Board           TTGO in Bulk               Custom PCB
+  ESP32 + SX1276 integriert       direkt bei LILYGO          ESP32-WROOM + SX1262
+  Lochraster / Prototyp-PCB       Kleinserie 100–500 St.     Bestückt bei JLCPCB/PCBWay
+  Konzept validieren              Feldtest + Optimierung     Serienproduktion 1.000+ St.
+
+BOM Guard:  ~47€                BOM Guard:  ~32€            BOM Guard:  ~18€
+BOM Garden: ~55€                BOM Garden: ~40€            BOM Garden: ~24€
+Preis:      ~89–99€             Preis:      ~65–79€         Preis:      ~45–65€
+Ziel:       Funktionsnachweis   Ziel:       Marktvalidierung Ziel:      Skalierung
+```
+
+### Warum Custom PCB unvermeidlich ist
+
+| Komponente | TTGO (Dev-Board) | Custom PCB (Produktion) | Ersparnis |
+|---|---|---|---|
+| ESP32 + LoRa gesamt | ~21€ | ~5,50€ (ESP32-WROOM + SX1262) | **~15€/Node** |
+| Grund | Komfort-Aufschlag, OLED, USB-Extras | Nur was gebraucht wird | |
+
+Bei 1.000 Nodes: **15.000€ Einsparung** allein durch Custom PCB.
+
+### Custom PCB — was das bedeutet
+
+- **KiCad-Schaltplan** ist bereits fertig (v0.1) — das ist die Basis
+- **PCB-Layout** in KiCad: Bauteile platzieren, Leiterbahnen routen
+- **Fertigung:** JLCPCB oder PCBWay (China), inkl. SMD-Bestückung
+  - 100 Platinen inkl. Bestückung: ~8–12€/Stück
+- **Zertifizierung** für EU-Markt (CE): nötig ab kommerziellem Verkauf (~2.000–5.000€ einmalig)
 
 ---
 
@@ -48,11 +86,12 @@ Bestehende Lösungen versagen off-grid:
 ### Garden Home
 *Standard-Bewässerung für eine Parzelle / einen Garten*
 
-| | |
-|---|---|
-| **Preis** | ~65€ |
-| **BOM** | ~38€ |
-| **Einsatz** | 1 Bewässerungszone, 1 Bodenfeuchtesensor |
+| | Phase 1 PoC | Phase 2 Pilot | Phase 3 Produktion |
+|---|---|---|---|
+| **Preis** | ~99€ | ~79€ | ~65€ |
+| **BOM** | ~55€ (TTGO Dev-Board) | ~40€ (TTGO Bulk) | ~24€ (Custom PCB) |
+| **Marge** | ~44% | ~49% | ~63% |
+| **Einsatz** | Funktionsnachweis | Feldtest | Massenmarkt |
 
 **ECU — Irrigator Node:**
 ```
@@ -148,11 +187,15 @@ Guard + Cam: Dieb kommt → Foto ✅  → Push-Alarm SOFORT ✅ → beste Lösun
 ### Guard Home
 *Einbruchschutz für Laube, Keller, Schuppen*
 
-| | |
-|---|---|
-| **Preis** | ~45€ |
-| **BOM** | ~25€ |
-| **Einsatz** | 1 Gebäude, Tür/Fenster-Montage |
+| | Phase 1 PoC | Phase 2 Pilot | Phase 3 Produktion |
+|---|---|---|---|
+| **Preis** | ~89€ | ~65€ | ~45€ |
+| **BOM** | ~47€ (TTGO Dev-Board) | ~32€ (TTGO Bulk) | ~18€ (Custom PCB) |
+| **Marge** | ~47% | ~51% | ~60% |
+| **Einsatz** | Funktionsnachweis | Feldtest | Massenmarkt |
+
+> **Kein Solarpanel** — Guard Home läuft 1–1,5 Jahre auf 2× 18650.
+> Laden via USB-C, wie ein Rauchmelder-Batteriewechsel einmal im Jahr.
 
 **ECU — Guard Node:**
 ```
