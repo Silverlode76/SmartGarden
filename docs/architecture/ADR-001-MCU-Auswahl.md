@@ -17,25 +17,30 @@ Für den SmartGarden Sensor-Node wird ein Mikrocontroller benötigt, der:
 
 ### Prototyp-Erfahrung (v0.0)
 
+> **Hinweis:** Diese Beschreibung wurde ursprünglich aus dem Gedächtnis geschrieben.  
+> Die exakte Stückliste (Fritzing-Export) ist dokumentiert in:  
+> [`hardware/bom/v0.0-stm32-prototype-bom.md`](../../hardware/bom/v0.0-stm32-prototype-bom.md)  
+> Dort sind auch die Abweichungen zu dieser ursprünglichen Beschreibung aufgeführt.
+
 Ein erster Prototyp wurde gebaut mit:
-- **MCU:** STM32 (Nano-Formfaktor, Debug-UART auf PB10/PB11)
-- **LoRa:** SX1276 Breakout-Modul (433/868 MHz)
-- **Sensor:** BME280 (Temperatur, Luftfeuchte, Luftdruck) via I2C
-- **Energie:** 2× Solarpanel (6V) → MPPT-Laderegler → TP4056 → LiPo 110mAh 3.7V
-- **Protokoll:** Eigenes LoRa-Protokoll auf 868 MHz (kein LoRaWAN)
+- **MCU:** STM32F103C8T6 „Blue Pill" Board
+- **LoRa:** SX1278 Breakout-Modul (**433 MHz** — nicht 868 MHz!)
+- **Sensor:** GY-BME280 (Temperatur, Luftfeuchte, Luftdruck) via I2C
+- **Energie:** 2× Solarzelle (1,5V / 1mA) → TP4056 → LiPo 110mAh 3,7V + Mini-360 Buck
+- **Protokoll:** Eigenes LoRa-Protokoll auf 433 MHz (kein LoRaWAN, kein EU868)
 - **Design:** Fritzing-Aufbau auf Lochrasterplatine
 
 **Ergebnis Prototyp:**
-- ✅ STM32 + SX1276 grundsätzlich funktionsfähig
-- ✅ 868 MHz Kommunikation erfolgreich
+- ✅ STM32 + SX1278 grundsätzlich funktionsfähig
 - ✅ BME280 liefert gute Messwerte (besser als DHT22: zusätzlich Luftdruck, genauer)
-- ⚠️ Erheblicher Lötaufwand beim SX1276 Breakout auf Lochraster
-- ⚠️ STM32 Toolchain aufwändig (STM32CubeIDE, HAL, manuelle Library-Integration)
+- ⚠️ SX1278 arbeitet auf 433 MHz — **kein EU868 LoRaWAN möglich** mit diesem Chip
+- ⚠️ Erheblicher Lötaufwand beim SX1278 Breakout auf Lochraster
+- ⚠️ STM32 Toolchain aufwändig (STM32CubeIDE, HAL, manuelle SPI-Konfiguration)
 - ⚠️ Eigenes Protokoll skaliert nicht — kein TTN, kein gemeinsamer Vereins-Gateway möglich
-- ❌ Schwachlicht-Problem: Node wurde bei schwacher Sonne nicht ausreichend geladen
-     → Ursache war **nicht** die Akkugröße (1× 18650 = ~44 Tage Autonomie)
-     → Ursache: TP4056 benötigt min. ~4,5V, kleine Panels fallen bei Bewölkung darunter
-     → Zudem kein MPPT → schlechter Wirkungsgrad bei diffusem Licht
+- ❌ Schwachlicht-Problem: Solarzellen 2× 1,5V/1mA = **3mW total** — zu schwach für TP4056
+     → TP4056 benötigt min. ~4,5V Eingang, 3V reichen nicht
+     → Kein MPPT → schlechter Wirkungsgrad bei diffusem Licht
+     → LiPo 110mAh → ~22h Autonomie ohne Solar (viel zu wenig für Outdoor)
 
 ---
 
