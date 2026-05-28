@@ -1,5 +1,229 @@
 # Wettbewerbsanalyse — SmartGarden
 
+> **Dokument-Struktur:**
+> - Teil 1: Guard Home — Sicherheit & Alarm (neu)
+> - Teil 2: Garden Home — Bewässerung
+
+---
+
+# Teil 1 — SmartGarden Guard: Wettbewerbsanalyse
+
+## Marktkontext
+
+Einbrüche in Schrebergärten sind kein Randproblem: Der Gesamtverband der Deutschen
+Versicherungswirtschaft schätzt ~100.000 Einbrüche/Jahr in Gartenlauben in Deutschland.
+Der durchschnittliche Schaden: ~500–2.000€. Bestehende Lösungen haben alle mindestens
+einen kritischen Nachteil für den Off-Grid-Einsatz.
+
+---
+
+## Wettbewerber Guard
+
+### 1. GSM-Alarmanlagen (Microguard, China-Module)
+
+**Produkte:** Microguard Reed-Kontakt Melder, diverse AliExpress/Amazon-GSM-Module
+
+| Parameter | Wert |
+|-----------|------|
+| Preis | ~30–80€ Hardware |
+| Laufzeit | ~1 Jahr (Akku, kein Solar) |
+| Alarm-Kanal | SMS oder Anruf |
+| App | ❌ keine |
+| Monatliche Kosten | **~1–5€/Monat** (SIM-Karte Datentarif) |
+| Solar | ❌ meistens nein |
+| Technologie | 2G/4G GSM |
+
+**Stärken:**
+- ✅ Funktioniert überall mit Mobilfunknetz
+- ✅ Günstig in der Anschaffung
+- ✅ Kein Gateway nötig
+
+**Schwächen:**
+- ❌ **Laufende SIM-Kosten** (über 3 Jahre = 36–180€ zusätzlich)
+- ❌ **Kein Solar** → jährlicher Batteriewechsel nötig
+- ❌ **Nur SMS/Anruf** — kein Push, kein App-Verlauf
+- ❌ **Keine Smart-Logik** (1 Sensor = 1 Alarm, viele Fehlalarme)
+- ❌ **Kein Verlauf, kein Dashboard**
+
+> **Fazit:** Günstige Einstiegslösung, aber laufende SIM-Kosten fressen Ersparnis.
+> Kein App-Erlebnis. Nach 3 Jahren günstiger als SmartGarden nur auf dem Papier.
+
+---
+
+### 2. Daitem D22 (professionelle Funk-Alarmanlage)
+
+| Parameter | Wert |
+|-----------|------|
+| Preis | ~300–800€ (inkl. Sensoren, ohne Installation) |
+| Laufzeit | ~5 Jahre (Langzeitbatterien) |
+| Alarm-Kanal | GSM-Modul optional (extra ~80€ + SIM) |
+| App | rudimentär / über Zentrale |
+| Monatliche Kosten | SIM-Karte + optional Notruf-Zentrale |
+| Solar | ❌ |
+| Installation | empfohlen durch Fachbetrieb |
+
+**Stärken:**
+- ✅ Professionelle Qualität, 5 Jahre Laufzeit
+- ✅ 7 Sensortypen, Tamper-Schutz, Hundebellen-Abschreckung
+- ✅ Tierimmun (kein Fehlalarm durch Katzen)
+
+**Schwächen:**
+- ❌ **Massiv überdimensioniert** für Schrebergarten (~400–800€)
+- ❌ **GSM-Modul kostet extra** + laufende SIM-Kosten
+- ❌ **Kein Solar** → nicht autark
+- ❌ **Kein Open-Source-Konzept**
+- ❌ Zielgruppe: Haus/Gewerbe, nicht Laube
+
+> **Fazit:** Goldene Lösung für die falsche Zielgruppe. Niemand investiert 600€
+> in den Schutz einer 2.000€-Laube.
+
+---
+
+### 3. VisorTech Solar-Alarmsirene (Pearl.de)
+
+| Parameter | Wert |
+|-----------|------|
+| Preis | ~30–60€ |
+| Laufzeit | Solar + Akku → autark |
+| Alarm-Kanal | **Nur lokale Sirene (110 dB)** |
+| App | ❌ keine |
+| Monatliche Kosten | **0€** |
+| Solar | ✅ |
+
+**Stärken:**
+- ✅ Solar → autark, keine Batteriewechsel
+- ✅ Kein Abo, keine SIM
+- ✅ Günstig
+- ✅ Schreckt ab
+
+**Schwächen:**
+- ❌ **Kein Remote-Alert** — du weißt erst vom Einbruch wenn du vor Ort bist
+- ❌ **Kein App, kein Push, kein Verlauf**
+- ❌ Nur Abschreckung, keine Beweissicherung (kein Zeitstempel)
+- ❌ Niemand hört die Sirene wenn die Laube leer ist
+
+> **Fazit:** Schreckt ab wenn jemand zuhört — im leeren Schrebergarten wirkungslos.
+> Das eigentliche Kundenproblem ("Ich will sofort wissen wenn jemand da ist") löst es nicht.
+
+---
+
+### 4. YoLink (LoRa-basiert, proprietär)
+
+| Parameter | Wert |
+|-----------|------|
+| Preis | Hub ~30$ + Sensor ~25–35$ |
+| Technologie | Proprietäres LoRa (nicht LoRaWAN/TTN) |
+| Alarm-Kanal | Push-App ✅ |
+| App | ✅ gut |
+| Monatliche Kosten | **0€** (Cloud kostenlos) |
+| Hub-Anforderung | **Hub braucht WiFi/Internet** |
+| EU-Verfügbarkeit | begrenzt (EC-Modelle, 868 MHz) |
+
+**Stärken:**
+- ✅ Gute App, echte Push-Notification
+- ✅ Keine monatlichen Kosten
+- ✅ LoRa-Reichweite (~400m)
+
+**Schwächen:**
+- ❌ **Hub muss zu Hause im WLAN hängen** → Schrebergarten ohne WLAN: kein Gateway
+- ❌ **Proprietäres LoRa** → kein TTN, keine Community-Gateways nutzbar
+- ❌ Kein Solar an Sensoren (Batterie 1–2 Jahre)
+- ❌ In Deutschland/EU kaum im Handel, kein deutscher Support
+- ❌ Hauptmarkt USA (915 MHz dominiert das Ökosystem)
+
+> **Fazit:** Technisch näher an SmartGarden als alle anderen. Scheitert aber am
+> Hub-Problem: der Hub braucht Internet am Standort. Für Schrebergärten ohne
+> WLAN/Strom grundsätzlich ungeeignet — es sei denn der Nutzer baut seinen
+> eigenen Gateway. Genau das ist SmartGardens Differenzierungspunkt.
+
+---
+
+### 5. Wildkamera mit 4G (Reolink, Browning, Victure)
+
+| Parameter | Wert |
+|-----------|------|
+| Preis | ~80–200€ |
+| Technologie | 4G/LTE SIM-Karte |
+| Alarm-Kanal | Foto per App / SMS ✅ |
+| App | ✅ mit Foto-Beweis |
+| Monatliche Kosten | **~5–15€/Monat** (4G-Datentarif) |
+| Solar | optional (Zusatzpanel ~30€) |
+| Energieverbrauch | hoch (Kamera) → Solar oft nicht ausreichend |
+
+**Stärken:**
+- ✅ Foto/Video als Beweis → bestes Feature für Polizei
+- ✅ Bekanntes Produkt, einfaches Setup
+- ✅ 4G → funktioniert überall mit Mobilfunk
+
+**Schwächen:**
+- ❌ **Hohe laufende Kosten** (4G-SIM ~5–15€/Monat = 60–180€/Jahr)
+- ❌ **Hoher Energieverbrauch** → Solar-Betrieb schwierig, häufige Akkuladung
+- ❌ Kamera-Linse sichtbar → Einbrecher erkennen und zerstören/drehen sie
+- ❌ Kein Bodenfeuchte/Temperatur-Sensor kombinierbar
+- ❌ Datenschutzbedenken (Video-Footage in Cloud)
+
+> **Fazit:** Stark für Beweissicherung, schwach für autonomen Dauerbetrieb.
+> SmartGarden Guard ist kein Kamera-Ersatz — kann aber als Wildkamera-Trigger
+> dienen (Guard Field v0.6: Schock-Kontakt löst Wildkamera aus).
+
+---
+
+## Guard — Wettbewerbsmatrix
+
+| Feature | GSM-Alarm | Daitem D22 | VisorTech Solar | YoLink | Wildkamera 4G | **SmartGarden Guard** |
+|---------|-----------|-----------|-----------------|--------|---------------|----------------------|
+| Kein WiFi/WLAN nötig | ✅ | ✅ | ✅ | ❌ Hub! | ✅ | ✅ |
+| Push-App Notification | ❌ SMS | teilweise | ❌ | ✅ | ✅ | ✅ |
+| Keine monatl. Kosten | ❌ SIM | ❌ SIM | ✅ | ✅ | ❌ SIM | **✅** |
+| Solar-autark | ❌ | ❌ | ✅ | ❌ | ❌/optional | **✅** |
+| Kein eigener Hub nötig* | ✅ | ✅ | ✅ | ❌ | ✅ | **✅ (TTN)** |
+| Smart AND-Logik | ❌ | teilweise | ❌ | ❌ | ❌ | **✅ PIR+Vibration** |
+| App-Verlauf / Dashboard | ❌ | ❌ | ❌ | ✅ | ✅ | **✅** |
+| Kombinierbar mit Bewässerung | ❌ | ❌ | ❌ | ❌ | ❌ | **✅** |
+| Open Source / DIY | ❌ | ❌ | ❌ | ❌ | ❌ | **✅** |
+| Preis (Hardware) | 30–80€ | 300–800€ | 30–60€ | ~60€ | 80–200€ | **~45€** |
+| Laufende Kosten/Jahr | 12–60€ | 12–60€ | 0€ | 0€ | 60–180€ | **0€** |
+
+*SmartGarden Guard benötigt TTN-Gateway in Reichweite — in Städten/Vororten meist vorhanden.
+ In ländlichen Gebieten ist der SmartGarden-eigene Gateway erforderlich.
+
+---
+
+## Guard — Positionierung
+
+```
+                KEIN SOLAR / BATTERIE-BETRIEB
+                          |
+         GSM-Alarm ●      |      ● Daitem D22
+                          |       (teuer, professionell)
+KEIN PUSH ────────────────┼──────────────── PUSH APP
+(nur SMS/Sirene)          |                (echter Alert)
+                          |
+    VisorTech Solar ●     |      ● YoLink (Hub braucht WiFi!)
+                          |
+                          |    SmartGarden Guard ●
+                          |    (Solar + Push + kein Hub + 0€/Monat)
+                SOLAR / AUTARK
+```
+
+**SmartGarden Guard ist die einzige Lösung die alle vier kombiniert:**
+> Solar · Push-App · kein WiFi/Hub am Standort · keine monatlichen Kosten
+
+---
+
+## Guard — Kritische Annahmen zu validieren
+
+| Annahme | Risiko | Test |
+|---------|--------|------|
+| TTN-Gateways in Schrebergärten erreichbar | Mittel | Feldtest: TTN-Coverage-Map für Top-10-Städte prüfen |
+| LoRaWAN-Latenz (5–30 Sek.) akzeptabel | Niedrig | Nutzer wollen Benachrichtigung, keinen Echtzeit-Alarm |
+| AND-Logik (PIR + Vibration) reduziert Fehlalarme ausreichend | Hoch | v0.2 Prototyp-Test: 1 Woche im Feld ohne Fehlalarm |
+| Zahlungsbereitschaft ~45€ ohne Abo | Niedrig | Gardena ~80€ im selben Markt validiert Preispunkt |
+
+---
+
+# Teil 2 — SmartGarden Garden Home: Wettbewerbsanalyse
+
 ## Hauptwettbewerber: MIYO
 
 ### Stärken

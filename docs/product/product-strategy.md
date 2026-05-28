@@ -335,10 +335,10 @@ SmartGarden App
 
 | Version | Zeitraum | Inhalt |
 |---|---|---|
-| `v0.2` | 2026 Q2 | Garden Home Prototyp: Pumpe + Feuchte + LoRaWAN |
-| `v0.3` | 2026 Q3 | Guard Home Prototyp: PIR + Vibration + AND-Logik |
-| `v0.4` | 2026 Q3 | App MVP: beide Nodes, Push-Alarm |
-| `v0.5` | 2026 Q4 | Feldtest: 3 Schrebergärten (Garden + Guard) |
+| `v0.2` | 2026 Q2/Q3 | **Guard Home Prototyp: PIR + Vibration + AND-Logik + Push** ← getauscht |
+| `v0.3` | 2026 Q3/Q4 | Garden Home Prototyp: Pumpe + Feuchte + LoRaWAN |
+| `v0.4` | 2026 Q4 | App MVP: beide Nodes, Push-Alarm |
+| `v0.5` | 2027 Q1 | Feldtest: 3 Schrebergärten (Garden + Guard) |
 | `v0.6` | 2027 Q1 | Guard Field: externe Antenne + Wildkamera-Trigger |
 | `v1.0` | 2027 Q2 | Markteinführung: Bundle + Amazon FBA |
 | `v1.5` | 2027 Q4 | Garden Pro: Mehrkanal-Bewässerung |
