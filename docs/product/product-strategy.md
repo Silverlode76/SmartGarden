@@ -303,6 +303,109 @@ SmartGarden App
 
 ---
 
+# Marktpotenzial — Erweiterte Analyse
+
+## Europäischer Markt
+
+### Schrebergärten & Off-Grid Standorte Europa
+
+| Land | Schrebergärten | Off-Grid Hütten (Schätzung) | Gesamt |
+|---|---|---|---|
+| 🇩🇪 Deutschland | ~1.400.000 | ~370.000 | **~1.770.000** |
+| 🇬🇧 United Kingdom | ~330.000 | ~200.000 | **~530.000** |
+| 🇫🇷 Frankreich | ~200.000 | ~300.000 | **~500.000** |
+| 🇳🇱 Niederlande | ~250.000 | ~80.000 | **~330.000** |
+| 🇦🇹 Österreich | ~100.000 | ~120.000 | **~220.000** |
+| 🇨🇭 Schweiz | ~70.000 | ~100.000 | **~170.000** |
+| 🇸🇪🇩🇰🇧🇪 Weitere | ~400.000 | ~300.000 | **~700.000** |
+| **Europa gesamt** | **~2.750.000** | **~1.470.000** | **~4.220.000** |
+
+### TAM Europa (Hardware)
+
+| Produkt | Standorte | Preis | TAM |
+|---|---|---|---|
+| Garden Home | ~4,2 Mio. | 65€ | **~273 Mio. €** |
+| Guard Home | ~4,2 Mio. | 45€ | **~189 Mio. €** |
+| Guard Field (B2B) | ~5 Mio. Betriebe | 80€ | **~400 Mio. €** |
+| **Europa Hardware TAM** | | | **~862 Mio. €** |
+
+### TAM SaaS-Komponente (Cloud Abo 3€/Monat)
+
+| Szenario | Aktive Nodes | MRR | ARR |
+|---|---|---|---|
+| Konservativ (0,5% Penetration) | ~21.000 | ~63.000€ | **~756.000€** |
+| Realistisch (2% Penetration) | ~84.000 | ~252.000€ | **~3,0 Mio. €** |
+| Optimistisch (5% Penetration) | ~211.000 | ~633.000€ | **~7,6 Mio. €** |
+
+---
+
+## 3-Jahres-Umsatzprojektion
+
+| Jahr | Nodes verkauft | Ø Preis | Hardware-Umsatz | SaaS ARR | **Gesamt** |
+|---|---|---|---|---|---|
+| 2026 (Jahr 1) | 500 | 60€ | 30.000€ | 5.400€ | **~35.000€** |
+| 2027 (Jahr 2) | 5.000 | 58€ | 290.000€ | 54.000€ | **~344.000€** |
+| 2028 (Jahr 3) | 20.000 | 55€ | 1.100.000€ | 216.000€ | **~1,3 Mio. €** |
+
+> **Annahmen:** 30% Nodes wechseln zu Pro-Abo (3€/Monat), Preisreduktion durch Skalierung,
+> Vertrieb: Jahr 1 Community, Jahr 2 Amazon DE + AT + CH, Jahr 3 EU + B2B Guard Field.
+
+### Break-Even-Analyse
+
+```
+Entwicklungskosten (Schätzung):
+  Zeit: ~400h × 80€/h (Opportunitätskosten) = 32.000€
+  Material Prototypen (×5):                  =  1.500€
+  App-Entwicklung (Flutter, extern):          = 15.000€
+  Gesamt Invest:                             = ~48.500€
+
+Break-Even:
+  Marge ~42% × Ø 60€ = ~25€ Deckungsbeitrag pro Node
+  48.500€ / 25€ = ~1.940 Nodes
+
+→ Break-Even bei ca. 2.000 verkauften Nodes
+→ Erreichbar Ende Jahr 2 (2027)
+```
+
+---
+
+## Vergleichbare Unternehmen & Exits
+
+| Unternehmen | Kategorie | Bewertung / Exit | Relevanz |
+|---|---|---|---|
+| **Netatmo** | Smart Home IoT (Wetter, Kamera, Alarm) | ~70 Mio. € (Legrand, 2018) | Nische IoT Consumer wird aufgekauft |
+| **Gardena** | Bewässerung | Teil von Husqvarna, >800 Mio. € Umsatz | Direkter Markt — großes etabliertes Segment |
+| **MIYO** | LoRaWAN Bewässerung | Startup, ~5 Mio. € Finanzierung | Direkter Wettbewerber, validiert Markt |
+| **Pixie Systems** | IoT Asset Tracking | ~50 Mio. $ (Zebra Technologies, 2021) | Guard Asset Analogie |
+| **Ring** | Alarm + Kamera Consumer | ~1 Mrd. $ (Amazon, 2018) | Guard-Markt validiert auf großer Skala |
+
+> **Kernaussage:** Der IoT-Consumer-Security und Irrigation-Markt ist real, wächst,
+> und wird von strategischen Käufern (Gardena/Husqvarna, Ring/Amazon, Legrand) aktiv konsolidiert.
+> SmartGarden adressiert das einzige unbesetzte Segment: **off-grid + pump + alarm**.
+
+---
+
+## Wettbewerbsmatrix (erweitert)
+
+```
+                    hoher Preis
+                         │
+              Ring ●     │      Gardena Smart
+              (Alarm)    │      System ●
+                         │
+kein LoRa ───────────────┼─────────────── LoRaWAN
+                         │
+    Gardena   ●          │      MIYO ●
+    AquaBloom            │      (braucht Wasserhahn)
+                         │
+                    niedriger Preis
+                         
+SmartGarden ● (rechts unten: LoRaWAN + günstig)
+  → einzige Lösung mit Pumpe + LoRaWAN + Alarm + <100€
+```
+
+---
+
 # Kritische Annahmen
 
 | # | Annahme | Risiko | Validierung |
@@ -312,3 +415,4 @@ SmartGarden App
 | 3 | LoRaWAN-Reichweite reicht für Weinberg/Baustelle | Mittel | Reichweitentest mit ext. Antenne |
 | 4 | Wildkamera-Trigger funktioniert mit gängigen Modellen | Niedrig | Labortest mit 3 Kameramodellen |
 | 5 | Vereine kaufen Gateway als Gemeinschaft | Mittel | 2 Pilotvereine ansprechen |
+| 6 | Break-Even bei 2.000 Nodes erreichbar bis Ende 2027 | Mittel | Traction aus Community-Phase validiert |
