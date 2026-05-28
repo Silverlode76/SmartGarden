@@ -1,1 +1,13 @@
 hardware/schematics/sensor-node/.history/
+
+# PlatformIO Build-Output
+.pio/
+firmware/**/.pio/
+
+# TTN Credentials — NIEMALS ins Git!
+firmware/**/src/secrets.h
+
+# macOS
+.DS_Store
+**/.DS_Store
+hardware/**/.DS_Store
