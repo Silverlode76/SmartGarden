@@ -190,27 +190,50 @@ Das SmartGarden-System besteht aus zwei Node-Typen die kombiniert werden:
 
 ### Verbrauch Sensor-Node
 
-> **Hinweis Pumpe:** Wechsel auf Drip-System (ADR-004). Pumpe läuft direkt auf 3,7V, kein Boost.
-> 1W Pumpe × 1h/Tag (= 10 L für 20 Pflanzen à 0,5 L/h) = 1 Wh/Tag. Sehr günstige Energiebilanz.
+> **Analyse Gardena AquaBloom:** Bei Drip-Systemen ist der **Controller-Standby (24h)**
+> oft größer als die Pump-Energie. Gardena AquaBloom L: ~0,86 Wh/Tag Standby vs. ~0,75 Wh/Tag Pumpe.
+> Für SmartGarden ist der Standby stark abhängig davon ob TTGO-Board oder Custom-PCB verwendet wird.
 
-| Zustand | Strom (Akku-Ebene) | Dauer/Tag | Energie/Tag |
-|---|---|---|---|
-| Deep Sleep | 0,01 mA | ~22,5h | 0,24 mWh |
-| Messung + LoRa TX | 120 mA | 30 min | 60 mWh |
-| Pumpe aktiv (1–3W Drip, direkt 3,7V) | ~270–810 mA | **60 min** (10 L/h, 20 Pflanzen) | **~270–810 mWh** |
-| Pumpe aktiv — Worst Case | ~810 mA | 120 min | ~1.620 mWh |
-| **Gesamt (realistisch, 1W Pumpe)** | | | **~330 mWh/Tag** |
-| **Gesamt (Worst Case, 3W Pumpe, 2h)** | | | **~1.680 mWh/Tag** |
+#### ⚠️ TTGO-Board vs. Custom PCB — kritischer Unterschied beim Standby
+
+| Komponente | TTGO LoRa32 (Prototyp) | Custom PCB (Phase 3) |
+|---|---|---|
+| ESP32-Chip Deep Sleep | ~10 µA | ~10 µA |
+| AMS1117 LDO (Quiescent) | ~5.000 µA ⚠️ | entfällt (effizienter LDO) |
+| CP2104 USB-UART Chip | ~500 µA ⚠️ | entfällt |
+| SX1276 Sleep Mode | ~200 nA | ~200 nA |
+| **Board-Gesamt Deep Sleep** | **~5.500 µA ≈ 5,5 mA** | **~50 µA ≈ 0,05 mA** |
+
+> Das TTGO-Dev-Board verbraucht im Deep Sleep ~5,5 mA statt der oft zitierten 0,01 mA —
+> hauptsächlich durch den AMS1117-LDO und den USB-UART-Chip.
+> Auf Custom PCB mit abgeschaltetem USB-Chip und effizientem LDO (z.B. MCP1700):
+> echter Deep-Sleep-Strom ~50 µA. Faktor 100 Unterschied.
+
+#### Verbrauch Sensor-Node
+
+| Zustand | Strom (Akku-Ebene) | Dauer/Tag | TTGO Energie/Tag | Custom PCB |
+|---|---|---|---|---|
+| Deep Sleep | **5,5 mA** (TTGO) / **0,05 mA** (PCB) | ~22,5h | **~460 mWh** | **~4 mWh** |
+| Messung + LoRa TX | 120 mA | ~24 min (96× alle 15min, je 15 Sek.) | ~180 mWh | ~180 mWh |
+| Pumpe aktiv (1W Drip, 3,7V direkt) | ~270 mA | ~60 min | ~270 mWh | ~270 mWh |
+| Pumpe aktiv — Worst Case (3W, 2h) | ~810 mA | 120 min | ~1.620 mWh | ~1.620 mWh |
+| **Gesamt realistisch (1W Pumpe)** | | | **~910 mWh/Tag** | **~454 mWh/Tag** |
+| **Gesamt Worst Case (3W, 2h)** | | | **~2.260 mWh/Tag** | **~1.870 mWh/Tag** |
 
 ### Solar-Ertrag & Saisonbetrachtung (Deutschland)
 
-| | Sommer | Winter |
-|---|---|---|
-| Verbrauch/Tag | ~330 mWh (realistisch, Drip 1W×1h) | ~60 mWh (nur Alarm + Sensor, keine Bewässerung) |
-| Effektive Sonnenstunden | 4–6h | 0,5–1h |
-| Ertrag 6W-Panel/Tag | ~24.000 mWh (4h) | ~3.000 mWh (0,5h) |
-| Tagesbilanz | +23.670 mWh ✅ | +2.940 mWh ✅ |
-| **Autonomie ohne Sonne** (2× 18650, ~18.500 mWh) | **~56 Tage** | **~308 Tage** |
+| | Sommer (TTGO) | Sommer (Custom PCB) | Winter (kein Pumpen) |
+|---|---|---|---|
+| Verbrauch/Tag | ~910 mWh | ~454 mWh | ~464 mWh (TTGO) / ~184 mWh (PCB) |
+| Effektive Sonnenstunden | 4–6h | 4–6h | 0,5–1h |
+| Ertrag 6W-Panel/Tag | ~24.000 mWh | ~24.000 mWh | ~3.000 mWh |
+| Tagesbilanz | **+23.090 mWh** ✅ | **+23.546 mWh** ✅ | **+2.536–2.816 mWh** ✅ |
+| **Autonomie ohne Sonne** (18.500 mWh) | **~20 Tage** | **~41 Tage** | **~40–100 Tage** |
+
+> **TTGO-Prototyp vs. Custom PCB:** Der AMS1117-LDO auf dem TTGO-Board kostet ~460 mWh/Tag —
+> das ist die dominante Verbrauchsquelle, größer als Pumpe (270 mWh) und LoRa TX (180 mWh) zusammen.
+> Auf Custom PCB mit MCP1700-LDO (2 µA Quiescent): Standby sinkt auf ~4 mWh/Tag → Faktor 115 besser.
+> **Erkenntnis (identisch wie Gardena):** Der Standby-Verbrauch dominiert das Energiebudget.
 
 > **Erkenntnis aus Prototyp-Experimenten:** Der Engpass im Winter war nicht die Panelgröße,
 > sondern der **TP4056 ohne MPPT**, der bei diffusem Licht und sinkender Panelspannung
