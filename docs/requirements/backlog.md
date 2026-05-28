@@ -82,14 +82,24 @@ damit ich Muster und Trends erkennen kann.
 
 ---
 
-### US-008 [SHOULD] Batteriestand anzeigen
-Als **Gärtner** möchte ich den Ladezustand des Akkus sehen,
-damit ich rechtzeitig eingreifen kann wenn die Energie knapp wird.
+### US-008 [MUST] Batteriestand anzeigen (Garden Node)
+Als **Gärtner** möchte ich den aktuellen Ladezustand des Garden-Node-Akkus
+in der App sehen,
+damit ich rechtzeitig eingreifen kann bevor das System ausfällt.
 
 **Akzeptanzkriterien:**
-- Given: Akku-Ladestand < 20%
-- When: Node sendet nächste Datenpakete
-- Then: App zeigt Warnung "Batterie niedrig"
+- Given: Node sendet Telemetrie alle 15 Minuten
+- When: Gärtner öffnet App
+- Then: Batteriestand wird als Prozent (0–100%) und farbiger Balken angezeigt
+  (≥30% grün, 15–29% gelb, <15% rot)
+
+- Given: Akkuspannung gemessen via GPIO35 ADC (Spannungsteiler R3/R4 100kΩ)
+- When: Spannung < 3,60V (≈25%)
+- Then: App zeigt gelbes Warnsymbol 🟡 im Dashboard
+
+- Given: Batteriestand < 15%
+- When: Node sendet nächstes Paket
+- Then: Push-Notification: „🌱 Garden Node: Batterie bei X% — Akku laden oder Solar prüfen"
 
 ---
 
@@ -183,10 +193,122 @@ damit ich es auch in Schrebergärten ohne Stromanschluss nutzen kann.
 
 ---
 
-### US-019 [MUST] Solar-Nachladung
+### US-019 [MUST] Solar-Nachladung (Garden Node)
 Als **Gärtner** möchte ich dass der Akku automatisch per Solarpanel
 nachgeladen wird,
 damit das System dauerhaft ohne Wartung läuft.
+
+---
+
+### US-020 [MUST] Guard: Batteriestand mit Restlaufzeit
+Als **Laubenbesitzer** möchte ich den Ladezustand meines Guard-Node-Akkus
+als Prozentanzeige UND als geschätzte Restlaufzeit in der App sehen,
+damit ich weiß wann ich das Gerät zum Laden anstecken muss.
+
+> **Hintergrund:** Guard Home hat kein Solarpanel — nur 2× 18650 (~5000 mAh).
+> Typische Laufzeit ~1–1,5 Jahre. Nutzer soll wie beim Rauchmelder
+> rechtzeitig erinnert werden.
+
+**Akzeptanzkriterien:**
+- Given: Guard Node sendet Batteriedaten (GPIO35 ADC, Spannungsteiler)
+- When: Nutzer öffnet App → Guard-Gerätekarte
+- Then: App zeigt:
+  - Prozentzahl (0–100%)
+  - Farbbalken (grün / gelb / rot)
+  - „Geschätzte Restlaufzeit: ~X Monate"
+  - „Letztes Laden: vor X Monaten (Datum)"
+
+- Given: Restlaufzeit < 3 Monate (ca. 25% Restkapazität)
+- When: Node sendet nächstes Paket
+- Then: App zeigt 🟡 Hinweis „Bald laden empfohlen"
+
+**Spannungs-Prozent-Mapping (18650):**
+| Spannung | Prozent | Status |
+|---|---|---|
+| 4,20V | 100% | 🟢 |
+| 3,80V | ~60% | 🟢 |
+| 3,60V | ~25% | 🟡 |
+| 3,50V | ~10% | 🔴 |
+| 3,30V | ~2%  | 🚨 |
+
+---
+
+### US-021 [MUST] Guard: Push-Alarm bei niedrigem Batteriestand
+Als **Laubenbesitzer** möchte ich eine Push-Benachrichtigung erhalten
+wenn der Guard-Akku einen kritischen Ladestand erreicht,
+damit ich das Gerät rechtzeitig aufladen kann bevor der Einbruchschutz ausfällt.
+
+**Akzeptanzkriterien:**
+- Given: Batteriestand fällt unter 25%
+- When: Node sendet nächste Telemetrie
+- Then: Einmalige Push-Notification: „🔋 Guard Laube: Batterie bei 25% — Bald laden"
+
+- Given: Batteriestand fällt unter 10%
+- When: Node sendet nächste Telemetrie
+- Then: Tägliche Push-Notification: „🔴 Guard Laube: Batterie kritisch (X%)! Bitte USB-C anschließen"
+
+- Given: Batteriestand fällt unter 3%
+- When: Node sendet letzte Telemetrie
+- Then: Sofortige Push-Notification: „🚨 Guard Laube: Batterie fast leer — System schaltet bald ab!"
+  + Sonder-LoRaWAN-Payload mit Flag `low_battery_critical: true`
+
+**Firmware-Verhalten:**
+- Bei < 5%: Node sendet alle 5 Minuten statt alle 15 Minuten
+  (damit letzte Warnung sicher ankommt bevor Abschaltung)
+
+---
+
+### US-022 [MUST] Guard: Node-Offline-Erkennung
+Als **Laubenbesitzer** möchte ich benachrichtigt werden wenn mein Guard-Node
+keine Daten mehr sendet,
+damit ich unterscheiden kann ob die Batterie leer ist oder das Gerät
+manipuliert / gestohlen wurde.
+
+> **Kritischer Sicherheitsaspekt:** Ein leerer Akku und ein gestohlener
+> Node sehen aus Sicht der App gleich aus — kein Signal.
+> Durch den letzten bekannten Batteriestand kann die App eine
+> fundierte Einschätzung geben.
+
+**Akzeptanzkriterien:**
+- Given: Guard Node hat zuletzt vor > 30 Minuten gesendet
+- When: Backend erkennt fehlende Heartbeats
+- Then: Push-Notification mit Kontext:
+
+  **Fall A — Batterie war niedrig:**
+  „⚫ Guard Laube: Keine Verbindung seit 30 Min.
+   Letzter Akkustand: 8% → Wahrscheinlich Batterie leer"
+
+  **Fall B — Batterie war voll:**
+  „🚨 Guard Laube: Keine Verbindung seit 30 Min.
+   Letzter Akkustand: 87% → Mögliche Manipulation! Bitte prüfen."
+
+- Given: Node kommt nach Offline-Phase wieder online
+- When: Erste Telemetrie empfangen
+- Then: Push-Notification: „✅ Guard Laube: Wieder online — Akkustand: X%"
+
+---
+
+### US-023 [SHOULD] Guard: Ladehistorie & Wartungserinnerung
+Als **Laubenbesitzer** möchte ich sehen wann ich meinen Guard-Node
+zuletzt geladen habe und wann das nächste Laden empfohlen wird,
+damit ich die Wartung wie einen Rauchmelder-Batteriewechsel einplanen kann.
+
+**Akzeptanzkriterien:**
+- Given: Backend erkennt Akkustand-Anstieg > 30% innerhalb von 2 Stunden
+  (= Ladevorgang erkannt)
+- When: Ladevorgang abgeschlossen (Spannung > 4,1V)
+- Then: Backend speichert Zeitstempel als „Letztes Laden"
+
+- Given: Nutzer öffnet Gerätedetails in App
+- When: Guard Node ausgewählt
+- Then: App zeigt:
+  - „Letztes Laden: Oktober 2026 (vor 4 Monaten)"
+  - „Nächstes Laden empfohlen: März 2027 (in 3 Monaten)"
+  - Basis: aktuelle Entladerate (mAh/Tag) aus letzten 30 Tagen
+
+- Given: Empfohlenes Ladedatum < 30 Tage entfernt
+- When: Nutzer öffnet App
+- Then: Hinweis-Banner: „🔔 Guard Laube: Laden empfohlen bis März 2027"
 
 ---
 
