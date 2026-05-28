@@ -16,11 +16,10 @@ Das SmartGarden-System besteht aus zwei Node-Typen die kombiniert werden:
 │  [Boden kapazitiv] ────────┤─[TTGO LoRa32]─────────► LoRaWAN
 │  [AM312 PIR] ──────────────┤    │                    │
 │  [SW-420] ─────────────────┘    │                    │
-│                            [XL6009 12V]              │
-│                                 │                    │
 │                            [IRLZ44N]                 │
 │                                 │                    │
-│                            [Pumpe/Ventil 12V]        │
+│                         [Drip-Pumpe 3,7–5V]         │
+│                         [+ Drip-Emitter]             │
 └──────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────┐
@@ -95,13 +94,15 @@ Das SmartGarden-System besteht aus zwei Node-Typen die kombiniert werden:
             │          └── Akku-Messung  GPIO35 ← Spannungsteiler (100kΩ / 100kΩ)
             │                            von VBAT_OUT
             │
-            └──── XL6009 Boost (3,7V → 12V)
-                       │
-                  [IRLZ44N Gate] ── 1kΩ ── GPIO12
-                       │
-                  [Pumpe / Magnetventil 12V]
+            └──── [IRLZ44N Gate] ── 1kΩ ── GPIO12
+                       │ (Low-Side Switch)
+                  [Drip-Pumpe 3,7–5V]  ← VBAT_OUT direkt (kein Boost nötig)
                        │
                       GND
+
+> **Boost-Converter entfällt:** Die Drip-Pumpe läuft direkt auf 3,7–5V LiPo-Spannung.
+> Der XL6009 (3,7V → 12V) wird nicht mehr benötigt. Falls die gewählte Pumpe 5V
+> benötigt, genügt ein kleiner 5V-Boost (z.B. MT3608, ~1€) statt des XL6009.
 ```
 
 > *Der Bodenfeuchte-Sensor wird nur während der Messung mit Strom versorgt (GPIO33 HIGH),
@@ -156,8 +157,8 @@ Das SmartGarden-System besteht aus zwei Node-Typen die kombiniert werden:
 | MPPT-Laderegler | **CN3791** | ~3€ | MPPT für 1S LiIon, Vin 4–7V, lädt ab ~4V Panelspannung |
 | Schutz-IC | DW01A + FS8205A | ~1€ | OVP / UVP / OCP Schutz für Akkupack |
 | Schottky-Diode | SS14 | <1€ | Rückstromschutz Panel → CN3791 |
-| Boost-Converter | XL6009 (3,7V → 12V) | ~2€ | Pumpenversorgung, nur bei Bedarf aktiv; bei 10W Pumpe: I_out ≈ 830mA → I_in ≈ 3,4A, noch im XL6009-Limit (4A) |
-| MOSFET | IRLZ44N | ~1€ | Pumpensteuerung, Logic-Level-kompatibel mit 3,3V GPIO |
+| Boost-Converter | ~~XL6009~~ **entfällt** | ~~2€~~ **0€** | Drip-Pumpe läuft direkt auf 3,7V — kein 12V-Boost nötig. Bei 5V-Pumpe: MT3608 (~1€) |
+| MOSFET | IRLZ44N | ~1€ | Pumpensteuerung, Logic-Level-kompatibel mit 3,3V GPIO; Low-Side Switch |
 | Widerstand MPPT | 100Ω | <1€ | Setzt MPPT-Arbeitspunkt des CN3791 |
 | Widerstand PROG | 1kΩ | <1€ | Begrenzt Ladestrom auf 1A |
 
@@ -171,14 +172,17 @@ Das SmartGarden-System besteht aus zwei Node-Typen die kombiniert werden:
 
 | Komponente | Modell | Preis | Typ | Begründung |
 |---|---|---|---|---|
-| Pumpe | 12V Tauchpumpe **10W, min. 3m Förderhöhe** | ~12€ | **PRIMÄR** | Fördert Wasser aktiv aus Regentonne/Fass; Förderhöhe ist das kritische Kriterium → siehe ADR-003 |
-| Ventil | 12V Magnetventil | ~12€ | Optional | Nur für Parzellen mit Vereins-Wasseranschluss |
+| Pumpe | DC Tauchpumpe **1–3W, 3,7–5V, min. 3m Förderhöhe** | ~5–8€ | **PRIMÄR** | Drip-System: niedriger Durchfluss (10–50 L/h), hoher Druck reicht; kein Boost-Converter nötig → ADR-003, ADR-004 |
+| Drip-Emitter | 0,5 L/h oder 1 L/h (je nach Pflanze) | ~0,50€/Stk. | **PRIMÄR** | Regulieren den Durchfluss pro Pflanze; keine Überwässerung |
+| Drip-Schlauch | Mikro-Schlauch 4/6mm | ~2€ | **PRIMÄR** | Verteilt Wasser von Pumpe zu den Emittern |
+| Verteiler | 1-auf-8 Drip-Verteiler | ~2€ | **PRIMÄR** | Verzweigung zu bis zu 8 Pflanzen (erweiterbar) |
+| Ventil | 12V Magnetventil | ~12€ | Optional | Nur für Parzellen mit Vereins-Wasseranschluss; benötigt dann XL6009 zurück |
 
-> ⚠️ **Förderhöhe ist nicht optional.** Eine billige 3–5W Tauchpumpe hat typisch ~1,5m **Stillstandsförderhöhe** —
-> bei 1m Gegendruck (Regentonne 80cm + Schlauch) fließt praktisch kein Wasser.
-> Mindestvorgabe: **3m max. Förderhöhe** (damit bei 1,5m Betriebspunkt noch ≥200 L/h fließen).
-> Prototyp-Erfahrung: Pumpe versagte bereits bei 1m Höhenunterschied Eimer → Becken.
-> Kennzahl beim Kauf prüfen: „max. head" oder „Förderhöhe max." im Datenblatt, nicht den Nennstrom.
+> ⚠️ **Förderhöhe bleibt kritisch.** Auch bei Drip-Systemen muss die Pumpe Wasser über den
+> Tonnenrand heben (~1–1,5m). Min. 3m Stillstandsförderhöhe erforderlich.
+> **Vorteil Drip:** Bei 10–50 L/h Durchfluss wird die Kennlinie sehr flach — selbst kleine
+> 1–3W Pumpen schaffen bei niedrigem Durchfluss 3–4m Förderhöhe (validiert: Gardena AquaBloom
+> 1W / 3,6V / 4m / 10 L/h). Suchbegriff: „3V 5V Mini Submersible Pump 3m head drip".
 
 ---
 
@@ -186,28 +190,27 @@ Das SmartGarden-System besteht aus zwei Node-Typen die kombiniert werden:
 
 ### Verbrauch Sensor-Node
 
-> **Hinweis Pumpe:** Strom- und Energiewerte für die Pumpe wurden mit der korrekten 10W-Spezifikation
-> neu berechnet (vorher: 3–5W ohne Förderhöhe). Realistischer Bewässerungszyklus: 2× täglich à 2 min
-> (nicht 30 min). Worst-Case-Budget (z.B. intensiver Bewässerungstag): 4× à 5 min = 20 min.
+> **Hinweis Pumpe:** Wechsel auf Drip-System (ADR-004). Pumpe läuft direkt auf 3,7V, kein Boost.
+> 1W Pumpe × 1h/Tag (= 10 L für 20 Pflanzen à 0,5 L/h) = 1 Wh/Tag. Sehr günstige Energiebilanz.
 
 | Zustand | Strom (Akku-Ebene) | Dauer/Tag | Energie/Tag |
 |---|---|---|---|
-| Deep Sleep | 0,01 mA | 23,5h | 0,24 mWh |
+| Deep Sleep | 0,01 mA | ~22,5h | 0,24 mWh |
 | Messung + LoRa TX | 120 mA | 30 min | 60 mWh |
-| Pumpe aktiv (10W, η Boost 80%) | ~3.400 mA | **4 min** (realistisch) | **~830 mWh** |
-| Pumpe aktiv — Worst Case | ~3.400 mA | 20 min | ~1.130 mWh |
-| **Gesamt (realistisch)** | | | **~890 mWh/Tag** |
-| **Gesamt (Worst Case)** | | | **~1.190 mWh/Tag** |
+| Pumpe aktiv (1–3W Drip, direkt 3,7V) | ~270–810 mA | **60 min** (10 L/h, 20 Pflanzen) | **~270–810 mWh** |
+| Pumpe aktiv — Worst Case | ~810 mA | 120 min | ~1.620 mWh |
+| **Gesamt (realistisch, 1W Pumpe)** | | | **~330 mWh/Tag** |
+| **Gesamt (Worst Case, 3W Pumpe, 2h)** | | | **~1.680 mWh/Tag** |
 
 ### Solar-Ertrag & Saisonbetrachtung (Deutschland)
 
 | | Sommer | Winter |
 |---|---|---|
-| Verbrauch/Tag | ~890 mWh (realistisch, mit Pumpe) | ~60 mWh (nur Alarm + Sensor, keine Bewässerung) |
+| Verbrauch/Tag | ~330 mWh (realistisch, Drip 1W×1h) | ~60 mWh (nur Alarm + Sensor, keine Bewässerung) |
 | Effektive Sonnenstunden | 4–6h | 0,5–1h |
 | Ertrag 6W-Panel/Tag | ~24.000 mWh (4h) | ~3.000 mWh (0,5h) |
-| Tagesbilanz | +23.110 mWh ✅ | +2.940 mWh ✅ |
-| **Autonomie ohne Sonne** (2× 18650, ~18.500 mWh) | **~21 Tage** | **~308 Tage** |
+| Tagesbilanz | +23.670 mWh ✅ | +2.940 mWh ✅ |
+| **Autonomie ohne Sonne** (2× 18650, ~18.500 mWh) | **~56 Tage** | **~308 Tage** |
 
 > **Erkenntnis aus Prototyp-Experimenten:** Der Engpass im Winter war nicht die Panelgröße,
 > sondern der **TP4056 ohne MPPT**, der bei diffusem Licht und sinkender Panelspannung
@@ -268,7 +271,8 @@ Sicherheitspuffer für lange Schlechtwetterperioden im Winter.
 - [x] Laderegler → CN3791 MPPT statt TP4056
 - [x] Akku → 2× 18650 parallel (2P), kein HW-Aufwand
 - [x] Ladekreis-Architektur definiert (SS14 + CN3791 + DW01A + XL6009)
-- [x] ADR-003: Pumpenauswahl → min. 3m Förderhöhe, 10W (nicht 3–5W)
+- [x] ADR-003: Pumpenauswahl → min. 3m Förderhöhe, 1–3W Drip-Pumpe (nicht 10W/12V)
+- [x] ADR-004: Bewässerungsart → Tropfbewässerung (Drip); XL6009 Boost-Converter entfällt
 
 ### 🔧 Hardware (v0.1)
 - [ ] Prototyp v0.0 Fritzing-Schaltplan archivieren → `hardware/schematics/v0.0-prototype-fritzing.png`

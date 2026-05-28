@@ -1,7 +1,7 @@
 # ADR-003 — Pumpenauswahl: Förderhöhe als kritisches Kriterium
 
 **Datum:** 2026  
-**Status:** Entschieden  
+**Status:** Entschieden — aktualisiert nach ADR-004 (Drip-System)  
 **Autor:** Oliver Schmoll  
 **Betrifft:** Hardware — Garden Home Node (Sensor-Node mit Bewässerung)
 
@@ -89,8 +89,9 @@ Der **XL6009 ist bei 10W noch verwendbar** (I_in ≈ 3,4A < 4A Limit), aber ohne
 Sicherheitspuffer. Bei einer 15W-Pumpe oder langen Kabelwegen (Spannungsabfall)
 wäre ein Wechsel auf **XL6019** (5A) oder ein dedizierter Boost-Converter nötig.
 
-**Entscheidung:** XL6009 bleibt für v0.2-Prototyp. Vor Serienfreigabe Messung
-am echten Aufbau (Temperatur des XL6009 nach 5 min Pumpenbetrieb prüfen).
+**Update durch ADR-004 (Drip-System):** XL6009 entfällt vollständig.
+Die Drip-Pumpe läuft direkt auf 3,7–5V LiPo-Spannung. Kein 12V-Boost nötig.
+Damit entfällt auch die Grenzbetrachtung — der Stromkreis wird deutlich einfacher.
 
 ---
 
@@ -111,19 +112,23 @@ auch im Worst Case **komfortabel positiv**.
 
 ---
 
-## Kaufempfehlung (Prototyp v0.2)
+## Kaufempfehlung (Prototyp v0.2) — aktualisiert für Drip-System
 
-**Suchbegriffe:** „12V DC Submersible Water Pump 10W 800L/H 3M Head"
+**Suchbegriffe:** „3V 5V Mini Submersible Pump 3m head" oder „DC 3.7V drip irrigation pump"
+
+Referenz: Gardena AquaBloom Pumpe (1W / 3,6V / 4m Förderhöhe / 10 L/h) — beweist
+dass 1W-Pumpen bei niedrigem Drip-Durchfluss 4m Förderhöhe erreichen können.
 
 Datenblatt-Pflichtangaben beim Kauf:
 - „Max. Head" oder „Förderhöhe max." **≥ 3m**
-- „Max. Flow" **≥ 600 L/h** (sichert nutzbaren Durchfluss bei 1,5m)
-- Betriebsspannung: **12V DC**
+- „Max. Flow" **≥ 10 L/h** (reicht für Drip; mehr ist besser)
+- Betriebsspannung: **3–5V DC**
+- Leistung: **1–3W**
 
 Bezugsquellen:
-- AliExpress: ~8–12€ (Vorlaufzeit 2–4 Wochen, Datenblatt anfordern)
-- Amazon DE: ~12–18€ (schnellere Verfügbarkeit, oft mit Kennlinie)
-- Berrybase / Reichelt: selten im Sortiment
+- AliExpress: ~3–6€ (Vorlaufzeit beachten, Datenblatt anfordern)
+- Amazon DE: ~5–10€
+- Berrybase: gelegentlich im Sortiment (Qualität besser dokumentiert)
 
 ---
 
