@@ -6,6 +6,7 @@ firmware/**/.pio/
 
 # TTN Credentials — NIEMALS ins Git!
 firmware/**/src/secrets.h
+app/**/lib/secrets.dart
 
 # macOS
 .DS_Store
