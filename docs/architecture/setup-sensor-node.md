@@ -81,6 +81,29 @@ Via TTN Console → Messaging → Schedule downlink (FPort 1, Payload type: Byte
 
 Downlink wird beim nächsten Uplink-Zyklus (alle 60s) zugestellt. **Confirmed downlink deaktivieren** — spart Duty Cycle.
 
+## LoRaWAN Downlink — Verhalten und Erwartungen
+
+### Downlink wird nicht sofort zugestellt
+TTN kann nicht bei jedem Uplink einen Downlink garantieren. Ein Befehl bleibt in der Queue bis er erfolgreich zugestellt wurde — das kann 1-3 Uplink-Zyklen dauern (bei 60s Intervall: bis zu 3 Minuten).
+
+Gründe für verzögerte Zustellung:
+- **Duty Cycle** des Gateways (EU868: max. 1% Sendezeit)
+- **RX-Fenster-Timing** (nur 5s nach Uplink verfügbar)
+- **Kanalauslastung** bei mehreren Devices am selben Gateway
+
+### Queue-Verhalten
+- **Ein Befehl, eine Ausführung**: Nach Zustellung wird der Befehl aus der Queue gelöscht
+- **Replace-Modus verwenden**: Immer "Replace downlink queue" wählen, nie "Append" — sonst stapeln sich Befehle
+- **Nie mehrfach klicken**: Jeden Befehl nur einmal senden und auf Zustellung warten
+- **Toggle (`02`) mit Bedacht**: Da `02` den Zustand umkehrt, führen zwei gestapelte `02`-Befehle dazu dass sich nichts ändert
+
+### Typischer Ablauf
+```
+10:32:19  → 02 in TTN Queue gelegt
+10:32:59  → Uplink #10 — kein Downlink (Gateway Duty Cycle)
+10:34:05  → Uplink #11 — Downlink zugestellt → LED TOGGLE ✓
+```
+
 ## Serielle Ausgabe (115200 Baud)
 
 ```
