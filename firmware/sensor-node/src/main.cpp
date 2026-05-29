@@ -35,10 +35,15 @@ const lmic_pinmap lmic_pins = {
 // ── Uplink-Intervall (PoC: 60s, Produktion: 900s = 15min) ──
 #define TX_INTERVAL_SEC  60
 
+// ── PIR Bewegungssensor ────────────────────────────────────
+#define PIR_PIN  13
+
 // ── Zustand ────────────────────────────────────────────────
-static bool     ledState    = false;  // aktueller LED-Status
-static uint32_t txCount     = 0;      // Anzahl gesendeter Pakete
-static bool     joined      = false;  // TTN-Join erfolgreich?
+static bool     ledState        = false;
+static bool     motionAlert     = false;  // aktueller PIR-Zustand
+static bool     motionLastState = false;  // vorheriger PIR-Zustand
+static uint32_t txCount         = 0;
+static bool     joined          = false;
 static osjob_t  sendJob;
 
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RST);
@@ -91,16 +96,17 @@ void sendUplink(osjob_t* j) {
         return;
     }
 
-    uint8_t payload[1];
-    payload[0] = ledState ? 0x01 : 0x00;
+    uint8_t payload[2];
+    payload[0] = ledState    ? 0x01 : 0x00;
+    payload[1] = motionAlert ? 0x01 : 0x00;
 
-    // Port 1 = LED-Status; confirmed=false (unbestätigt für Batterieschonung)
     LMIC_setTxData2(1, payload, sizeof(payload), 0);
 
     txCount++;
-    Serial.printf("[TX] Uplink #%lu — LED=%s\n", txCount, ledState ? "ON" : "OFF");
+    Serial.printf("[TX] Uplink #%lu — LED=%s Motion=%s\n",
+                  txCount, ledState ? "ON" : "OFF", motionAlert ? "ALARM" : "OK");
     updateOLED("Sende Uplink...", ledState ? "LED: AN" : "LED: AUS",
-               String("TX #" + String(txCount)).c_str());
+               motionAlert ? "BEWEGUNG!" : String("TX #" + String(txCount)).c_str());
 }
 
 // ── LMIC Event-Handler ─────────────────────────────────────
@@ -217,6 +223,9 @@ void setup() {
 
     // LED
     pinMode(LED_PIN, OUTPUT);
+
+    // PIR
+    pinMode(PIR_PIN, INPUT);
     digitalWrite(LED_PIN, LOW);
 
     // OLED init
@@ -268,4 +277,17 @@ void setup() {
 // ── Loop ───────────────────────────────────────────────────
 void loop() {
     os_runloop_once();
+
+    // PIR Polling — Zustandsänderung erkennen und sofort senden
+    if (joined) {
+        bool pirNow = digitalRead(PIR_PIN) == HIGH;
+        if (pirNow != motionLastState) {
+            motionLastState = pirNow;
+            motionAlert     = pirNow;
+            Serial.printf("[PIR] Zustand: %s\n", pirNow ? "ALARM" : "KLAR");
+            if (!(LMIC.opmode & OP_TXRXPEND)) {
+                os_setCallback(&sendJob, sendUplink);
+            }
+        }
+    }
 }
