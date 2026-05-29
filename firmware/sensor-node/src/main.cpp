@@ -35,11 +35,19 @@ const lmic_pinmap lmic_pins = {
 // ── Uplink-Intervall (PoC: 60s, Produktion: 900s = 15min) ──
 #define TX_INTERVAL_SEC  60
 
+// ── PIR Bewegungssensor ────────────────────────────────────
+#define PIR_PIN  13
+
 // ── Zustand ────────────────────────────────────────────────
-static bool     ledState    = false;  // aktueller LED-Status
-static uint32_t txCount     = 0;      // Anzahl gesendeter Pakete
-static bool     joined      = false;  // TTN-Join erfolgreich?
+static bool     ledState        = false;
+static bool     motionAlert     = false;  // aktueller PIR-Zustand
+static bool     motionLastState = false;  // vorheriger PIR-Zustand
+static bool     motionPending   = false;  // Zustandsänderung wartet auf TX
+static uint32_t txCount         = 0;
+static bool     joined          = false;
 static osjob_t  sendJob;
+
+void sendUplink(osjob_t* j);  // forward declaration
 
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RST);
 
@@ -91,16 +99,18 @@ void sendUplink(osjob_t* j) {
         return;
     }
 
-    uint8_t payload[1];
-    payload[0] = ledState ? 0x01 : 0x00;
+    uint8_t payload[2];
+    payload[0] = ledState    ? 0x01 : 0x00;
+    payload[1] = motionAlert ? 0x01 : 0x00;
+    motionAlert = false;  // zurücksetzen nach Senden
 
-    // Port 1 = LED-Status; confirmed=false (unbestätigt für Batterieschonung)
     LMIC_setTxData2(1, payload, sizeof(payload), 0);
 
     txCount++;
-    Serial.printf("[TX] Uplink #%lu — LED=%s\n", txCount, ledState ? "ON" : "OFF");
+    Serial.printf("[TX] Uplink #%lu — LED=%s Motion=%s\n",
+                  txCount, ledState ? "ON" : "OFF", payload[1] ? "ALARM" : "OK");
     updateOLED("Sende Uplink...", ledState ? "LED: AN" : "LED: AUS",
-               String("TX #" + String(txCount)).c_str());
+               payload[1] ? "BEWEGUNG!" : String("TX #" + String(txCount)).c_str());
 }
 
 // ── LMIC Event-Handler ─────────────────────────────────────
@@ -175,10 +185,15 @@ void onEvent(ev_t ev) {
             updateOLED("TX OK", rssi_buf, String("Nächster TX: " + String(TX_INTERVAL_SEC) + "s").c_str());
         }
 
-        // Nächsten Uplink einplanen
-        os_setTimedCallback(&sendJob,
-                            os_getTime() + sec2osticks(TX_INTERVAL_SEC),
-                            sendUplink);
+        // Zustandsänderung während TX? Sofort senden, sonst normaler Zyklus
+        if (motionPending) {
+            motionPending = false;
+            os_setCallback(&sendJob, sendUplink);
+        } else {
+            os_setTimedCallback(&sendJob,
+                                os_getTime() + sec2osticks(TX_INTERVAL_SEC),
+                                sendUplink);
+        }
         break;
 
     case EV_TXSTART:
@@ -261,6 +276,10 @@ void setup() {
     // ADR (Adaptive Data Rate) — für Outdoor-Tests aktivieren
     LMIC_setAdrMode(1);
 
+    // PIR Bewegungssensor
+    pinMode(PIR_PIN, INPUT);
+    Serial.println("[PIR] Bewegungssensor aktiv auf GPIO 13");
+
     Serial.println("[LMIC] Starte OTAA Join...");
     LMIC_startJoining();
 }
@@ -268,4 +287,19 @@ void setup() {
 // ── Loop ───────────────────────────────────────────────────
 void loop() {
     os_runloop_once();
+
+    // PIR Polling — Zustandsänderung erkennen
+    if (joined) {
+        bool pirNow = digitalRead(PIR_PIN) == HIGH;
+        if (pirNow != motionLastState) {
+            motionLastState = pirNow;
+            motionAlert     = pirNow;
+            motionPending   = true;
+            Serial.printf("[PIR] Zustand geändert: %s\n", pirNow ? "ALARM" : "KLAR");
+            if (!(LMIC.opmode & OP_TXRXPEND)) {
+                motionPending = false;
+                os_setCallback(&sendJob, sendUplink);
+            }
+        }
+    }
 }
