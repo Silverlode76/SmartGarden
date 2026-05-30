@@ -1,14 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:mqtt_client/mqtt_client.dart';
-import 'package:mqtt_client/mqtt_server_client.dart';
-import 'secrets.dart';  // API Key — nicht im Git!
+import 'package:http/http.dart' as http;
+import 'secrets.dart';  // TTN API Key — nicht im Git!
 
-// ── TTN Konfiguration ───────────────────────────────────────
-const String ttnAppId    = 'smartgardenollie';
-const String ttnDeviceId = 'ollie-smartgarden-device';
-const String ttnMqttHost = 'eu1.cloud.thethings.network';
-const int    ttnMqttPort = 8883;
+// ── Konfiguration ───────────────────────────────────────────
+const String firebaseDbUrl  = 'https://smartgarden-app-ollie-default-rtdb.europe-west1.firebasedatabase.app';
+const String ttnAppId       = 'smartgardenollie';
+const String ttnDeviceId    = 'ollie-smartgarden-device';
+const String ttnMqttHost    = 'eu1.cloud.thethings.network';
 
 void main() {
   runApp(const SmartGardenApp());
@@ -38,83 +38,61 @@ class SmartGardenHome extends StatefulWidget {
 }
 
 class _SmartGardenHomeState extends State<SmartGardenHome> {
-  MqttServerClient? _client;
-
   bool   _ledState    = false;
   bool   _motionAlert = false;
   bool   _connected   = false;
   String _lastUpdate  = '—';
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _connectMqtt();
+    _fetchStatus();
+    // alle 10s aktualisieren
+    _timer = Timer.periodic(const Duration(seconds: 10), (_) => _fetchStatus());
   }
 
-  Future<void> _connectMqtt() async {
-    final client = MqttServerClient.withPort(
-      ttnMqttHost,
-      'flutter_sg_${DateTime.now().millisecondsSinceEpoch}',
-      ttnMqttPort,
+  Future<void> _fetchStatus() async {
+    final url = Uri.parse(
+      '$firebaseDbUrl/devices/$ttnDeviceId.json'
     );
-    client.secure = true;
-    client.keepAlivePeriod = 60;
-    client.onDisconnected = _onDisconnected;
-
-    final connMsg = MqttConnectMessage()
-        .withClientIdentifier('flutter_sg')
-        .authenticateAs('$ttnAppId@ttn', ttnApiKey)
-        .startClean();
-    client.connectionMessage = connMsg;
-
     try {
-      await client.connect();
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data == null) return;
+
+        // TTN schreibt mit Push-Key — letzten Eintrag finden
+        final entries = (data as Map).values.toList();
+        if (entries.isEmpty) return;
+
+        // Letzten Uplink nehmen
+        final last = entries.last;
+        final frmPayload = last['uplink_message']?['frm_payload'] as String?;
+        if (frmPayload == null) return;
+
+        final bytes  = base64Decode(frmPayload);
+        final led    = bytes.isNotEmpty ? bytes[0] == 0x01 : false;
+        final motion = bytes.length > 1 ? bytes[1] == 0x01 : false;
+        final time   = last['received_at'] as String? ?? '—';
+
+        setState(() {
+          _ledState    = led;
+          _motionAlert = motion;
+          _connected   = true;
+          _lastUpdate  = time.length > 18 ? time.substring(11, 19) : time;
+        });
+      }
     } catch (e) {
-      debugPrint('MQTT Verbindungsfehler: $e');
-      return;
-    }
-
-    if (client.connectionStatus?.state == MqttConnectionState.connected) {
-      setState(() {
-        _connected = true;
-        _client = client;
-      });
-
-      final topic = 'v3/$ttnAppId@ttn/devices/$ttnDeviceId/up';
-      client.subscribe(topic, MqttQos.atLeastOnce);
-
-      client.updates?.listen((List<MqttReceivedMessage<MqttMessage>> messages) {
-        final msg = messages[0].payload as MqttPublishMessage;
-        final payload = MqttPublishPayload.bytesToStringAsString(msg.payload.message);
-        _parseUplink(payload);
-      });
+      debugPrint('Fetch-Fehler: $e');
+      setState(() => _connected = false);
     }
   }
 
-  void _parseUplink(String raw) {
-    try {
-      final json = jsonDecode(raw);
-      final frmPayload = json['uplink_message']?['frm_payload'] as String?;
-      if (frmPayload == null) return;
-
-      final bytes  = base64Decode(frmPayload);
-      final led    = bytes.isNotEmpty ? bytes[0] == 0x01 : false;
-      final motion = bytes.length > 1 ? bytes[1] == 0x01 : false;
-
-      setState(() {
-        _ledState    = led;
-        _motionAlert = motion;
-        _lastUpdate  = TimeOfDay.now().format(context);
-      });
-    } catch (e) {
-      debugPrint('Parse-Fehler: $e');
-    }
-  }
-
-  void _sendDownlink(int cmd) {
-    if (_client == null || !_connected) return;
-
-    final topic = 'v3/$ttnAppId@ttn/devices/$ttnDeviceId/down/push';
+  Future<void> _sendDownlink(int cmd) async {
+    final url = Uri.parse(
+      'https://$ttnMqttHost/api/v3/as/applications/$ttnAppId/devices/$ttnDeviceId/down/push'
+    );
     final payload = jsonEncode({
       'downlinks': [
         {
@@ -125,19 +103,24 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
       ]
     });
 
-    final builder = MqttClientPayloadBuilder();
-    builder.addString(payload);
-    _client!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
-    debugPrint('[MQTT] Downlink: 0x${cmd.toRadixString(16)}');
-  }
-
-  void _onDisconnected() {
-    setState(() => _connected = false);
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $ttnApiKey',
+          'Content-Type': 'application/json',
+        },
+        body: payload,
+      );
+      debugPrint('[DOWN] Status: ${response.statusCode}');
+    } catch (e) {
+      debugPrint('[DOWN] Fehler: $e');
+    }
   }
 
   @override
   void dispose() {
-    _client?.disconnect();
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -163,7 +146,6 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Status-Karten
             Row(
               children: [
                 Expanded(child: _StatusCard(
@@ -189,11 +171,16 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
               style: const TextStyle(color: Colors.grey, fontSize: 12),
             ),
 
-            const SizedBox(height: 40),
-            const Text(
-              'LED steuern',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _fetchStatus,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Aktualisieren'),
             ),
+
+            const SizedBox(height: 32),
+            const Text('LED steuern',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
 
             Row(
