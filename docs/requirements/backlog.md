@@ -105,6 +105,38 @@ damit ich rechtzeitig eingreifen kann bevor das System ausfällt.
 
 ## EPIC-03: Sicherheit & Alarm
 
+### US-024 [MUST] Guard: IP65 Schutzklasse Gehäuse
+Als **Laubenbesitzer** möchte ich dass der Guard-Node der Schutzklasse IP65
+entspricht,
+damit das Gerät dauerhaft im Außenbereich betrieben werden kann ohne durch
+Regen, Spritzwasser oder Staub beschädigt zu werden.
+
+**Hintergrund:** IP65 = vollständig staubdicht (6) + Schutz gegen
+Strahlwasser aus beliebigem Winkel (5). Für Outdoor-Dauerbetrieb Minimum.
+
+**Akzeptanzkriterien:**
+- Given: Guard-Node ist montiert und in Betrieb
+- When: Regen oder Spritzwasser trifft das Gehäuse
+- Then: Keine Wasserpenetration ins Innere, Gerät bleibt funktionsfähig
+
+- Given: Guard-Node wird verbaut
+- When: Gehäuse geschlossen ist
+- Then: IP65-Zertifizierung des Gehäuses liegt vor (Herstellerangabe oder Test)
+
+- Given: Kabeleinführungen (Sensor, Solar, Antenne)
+- When: Gehäuse montiert
+- Then: Alle Durchführungen mit IP65-geeigneten Kabelverschraubungen abgedichtet
+
+**Umsetzung:**
+- Gehäuse: Industriegehäuse IP65 (z.B. Spelsberg, Fibox oder äquivalent)
+- Kabelverschraubungen: PG-Verschraubungen mit Dichtring
+- Antenne: Externe LoRa-Antenne mit SMA-Durchführung (IP67-Buchse)
+- PIR-Sensor: HC-SR501 durch IP65-Fenster oder Wetterschutzhaube geschützt
+
+---
+
+
+
 ### US-009 [MUST] Push-Alarm bei Bewegungserkennung
 Als **Gärtner** möchte ich sofort eine Push-Benachrichtigung erhalten
 wenn nachts Bewegung in meinem Garten erkannt wird,
