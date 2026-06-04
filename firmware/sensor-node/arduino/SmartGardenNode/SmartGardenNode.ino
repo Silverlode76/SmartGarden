@@ -105,6 +105,11 @@ void saveSession() {
     Serial.println("[RTC] Session gespeichert");
 }
 
+// ── Sleep einleiten nach Warte-Timer ──────────────────────
+void triggerSleep(osjob_t* j) {
+    txDone = true;
+}
+
 // ── Uplink senden ──────────────────────────────────────────
 void sendUplink(osjob_t* j) {
     if (LMIC.opmode & OP_TXRXPEND) return;
@@ -228,7 +233,7 @@ void onEvent(ev_t ev) {
             // 10s wach bleiben für eventuelle Downlinks dann schlafen
             os_setTimedCallback(&sendJob,
                                 os_getTime() + sec2osticks(10),
-                                [](osjob_t* j) { txDone = true; });
+                                triggerSleep);
         }
         break;
 
