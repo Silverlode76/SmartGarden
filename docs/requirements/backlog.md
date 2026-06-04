@@ -137,6 +137,62 @@ Strahlwasser aus beliebigem Winkel (5). Für Outdoor-Dauerbetrieb Minimum.
 
 
 
+### US-025 [MUST] Guard: Prototyp-Gehäuse wasserdicht (ohne 3D-Drucker)
+Als **Entwickler** möchte ich den ersten Guard-Prototyp in einem fertigen
+IP65/IP66-Industriegehäuse aufbauen,
+damit das Gerät bereits beim ersten Feldtest wetterfest ist ohne einen
+3D-Drucker zu benötigen.
+
+**Empfohlenes Gehäuse:** Spelsberg TK PC 1208-6-m (IP66, ~10€, Conrad)
+- 122 × 82 × 55mm — passt für TTGO LoRa32 + 2× 18650
+- Transparenter Deckel (OLED von außen sichtbar)
+
+**Durchführungen:**
+- SMA-Buchse IP67 für externe LoRa-Antenne (~3€)
+- PG-Kabelverschraubung M16 für Solar/PIR-Kabel (~1€)
+- Wasserdichte USB-C Buchse für Wartung/Laden (~5€)
+
+**PIR-Sensor Optionen:**
+- **Option A:** PIR schaut durch transparentes Fresnel-Fenster im Gehäuse
+- **Option B:** Externer IP65 PIR-Bewegungsmelder (~10€), nur Signalkabel ins Gehäuse
+- **Option C:** HC-SR501 mit Wetterschutzhaube (Baumarkt, ~3€) für erste Tests
+
+**Akzeptanzkriterien:**
+- Given: Gehäuse ist montiert und geschlossen
+- When: Regen trifft das Gehäuse
+- Then: Keine Wasserpenetration, Gerät bleibt funktionsfähig
+
+- Given: PIR-Sensor ist installiert
+- When: Bewegung im Erfassungsbereich
+- Then: Sensor erkennt Bewegung zuverlässig trotz Wetterschutz
+
+**Geschätzte Materialkosten Prototyp:**
+| Komponente | Preis |
+|------------|-------|
+| Spelsberg TK PC 1208 | ~10€ |
+| SMA-Buchse IP67 | ~3€ |
+| USB-C Buchse wasserdicht | ~5€ |
+| Kabelverschraubungen (2×) | ~2€ |
+| Wetterschutzhaube PIR | ~3€ |
+| **Gesamt** | **~23€** |
+
+---
+
+### US-026 [SHOULD] Guard: OTA Firmware-Update via WiFi
+Als **Entwickler** möchte ich Firmware-Updates drahtlos einspielen können,
+damit ich nicht jede Laube physisch aufsuchen muss.
+
+**Konzept:** ESP32 hat WiFi eingebaut — bei Wartung (USB-C angesteckt)
+wechselt der Node kurz in WiFi-Modus und empfängt OTA-Update.
+Im Normalbetrieb bleibt WiFi deaktiviert (Stromsparen).
+
+**Akzeptanzkriterien:**
+- Given: Node ist per USB-C ans Laden angeschlossen
+- When: Entwickler startet OTA-Update via App
+- Then: Node empfängt neue Firmware via WiFi und startet neu
+
+---
+
 ### US-009 [MUST] Push-Alarm bei Bewegungserkennung
 Als **Gärtner** möchte ich sofort eine Push-Benachrichtigung erhalten
 wenn nachts Bewegung in meinem Garten erkannt wird,
