@@ -127,6 +127,25 @@ void goToSleep() {
     saveSession();
     rtcLedState = ledState;
 
+    // Bug-Fix: PIR noch HIGH? Warten bis KLAR sonst kein Wakeup möglich!
+    // EXT0 weckt nur bei steigender Flanke (0→1) — bei dauerhaft HIGH
+    // würde der ESP32 nie wieder aufwachen.
+    if (digitalRead(PIR_PIN) == HIGH) {
+        Serial.println("[SLEEP] PIR noch HIGH — warte auf KLAR vor Sleep...");
+        updateOLED("Warte auf KLAR", "PIR noch aktiv", "...");
+        uint32_t waitStart = millis();
+        while (digitalRead(PIR_PIN) == HIGH) {
+            delay(500);
+            // Sicherheits-Timeout: nach 5 Minuten trotzdem schlafen
+            if (millis() - waitStart > 300000) {
+                Serial.println("[SLEEP] Timeout — schlafen trotz PIR HIGH");
+                break;
+            }
+        }
+        delay(1000);  // kurz warten nach fallender Flanke
+        Serial.println("[SLEEP] PIR KLAR — jetzt schlafen");
+    }
+
     Serial.println("[SLEEP] Gehe in Deep Sleep...");
     Serial.printf("[SLEEP] Wakeup: PIR GPIO%d oder Timer %llu min\n",
                   PIR_PIN, SLEEP_INTERVAL_US / 60000000ULL);
