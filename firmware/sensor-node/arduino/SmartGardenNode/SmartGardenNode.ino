@@ -1,8 +1,8 @@
 // ============================================================
-// SmartGarden — Garden Home PoC v0.1
+// SmartGarden — Guard Node PoC v0.2
 // Hardware : TTGO LoRa32 V2.1 (ESP32 + SX1276)
-// Funktion : TTN OTAA-Join + LED per Downlink steuern
-//            + LED-Status per Uplink zurückmelden
+// Funktion : Deep Sleep + PIR Wakeup + Session-Persistenz
+//            TTN OTAA-Join + LED per Downlink steuern
 // Author   : Oliver Schmoll, 2026
 // ============================================================
 
@@ -12,17 +12,17 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_SSD1306.h>
-
 #include "secrets.h"   // DEVEUI, APPEUI, APPKEY — nicht ins Git!
 
 // ── Hardware-Pins TTGO LoRa32 V2.1 ────────────────────────
-#define LED_PIN        25       // Onboard LED
+#define LED_PIN        25
 #define OLED_SDA       21
 #define OLED_SCL       22
-#define OLED_RST       -1   // kein Reset-Pin am TTGO LoRa32 V2.1
+#define OLED_RST       -1
 #define OLED_WIDTH     128
 #define OLED_HEIGHT    64
 #define OLED_ADDR      0x3C
+#define PIR_PIN        13       // HC-SR501 Bewegungssensor
 
 // SX1276 SPI-Pinbelegung
 const lmic_pinmap lmic_pins = {
@@ -32,262 +32,258 @@ const lmic_pinmap lmic_pins = {
     .dio  = { 26, 33, 32 },
 };
 
-// ── Uplink-Intervall (PoC: 60s, Produktion: 900s = 15min) ──
-#define TX_INTERVAL_SEC  60
+// ── Timer-Intervall für regulären Status-Uplink ────────────
+#define SLEEP_INTERVAL_US  (15ULL * 60 * 1000000)  // 15 Minuten
 
-// ── PIR Bewegungssensor ────────────────────────────────────
-#define PIR_PIN  13
+// ── RTC-Speicher (überlebt Deep Sleep) ────────────────────
+RTC_DATA_ATTR bool     rtcJoined       = false;
+RTC_DATA_ATTR uint8_t  rtcNwkSKey[16]  = {0};
+RTC_DATA_ATTR uint8_t  rtcAppSKey[16]  = {0};
+RTC_DATA_ATTR uint32_t rtcDevAddr      = 0;
+RTC_DATA_ATTR uint32_t rtcSeqnoUp      = 0;
+RTC_DATA_ATTR uint32_t rtcSeqnoDn      = 0;
+RTC_DATA_ATTR bool     rtcLedState     = false;
+
+// ── Wakeup-Grund ───────────────────────────────────────────
+enum WakeupReason { WAKEUP_RESET, WAKEUP_TIMER, WAKEUP_PIR };
+
+WakeupReason getWakeupReason() {
+    esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
+    if (cause == ESP_SLEEP_WAKEUP_EXT0) return WAKEUP_PIR;
+    if (cause == ESP_SLEEP_WAKEUP_TIMER) return WAKEUP_TIMER;
+    return WAKEUP_RESET;
+}
 
 // ── Zustand ────────────────────────────────────────────────
-static bool     ledState        = false;
-static bool     motionAlert     = false;  // aktueller PIR-Zustand
-static bool     motionLastState = false;  // vorheriger PIR-Zustand
-static uint32_t txCount         = 0;
-static bool     joined          = false;
+static bool     ledState    = false;
+static bool     motionAlert = false;
+static uint32_t txCount     = 0;
+static bool     txDone      = false;
 static osjob_t  sendJob;
 
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RST);
 
-// ── OLED-Hilfsfunktion ─────────────────────────────────────
+// ── OLED ───────────────────────────────────────────────────
 void updateOLED(const char* line1, const char* line2 = "", const char* line3 = "") {
     display.clearDisplay();
     display.setTextColor(WHITE);
-
     display.setTextSize(1);
     display.setCursor(0, 0);
-    display.println("SmartGarden PoC v0.1");
+    display.println("SmartGarden v0.2");
     display.drawLine(0, 10, 127, 10, WHITE);
-
-    display.setTextSize(1);
-    display.setCursor(0, 14);
-    display.println(line1);
-    display.setCursor(0, 26);
-    display.println(line2);
-    display.setCursor(0, 38);
-    display.println(line3);
-
-    // Status-Zeile unten
+    display.setCursor(0, 14); display.println(line1);
+    display.setCursor(0, 26); display.println(line2);
+    display.setCursor(0, 38); display.println(line3);
     display.setCursor(0, 54);
-    display.printf("LED:%s  TX#%lu", ledState ? "ON " : "OFF", txCount);
-
+    display.printf("LED:%s  PIR:%s", ledState ? "ON" : "OFF", motionAlert ? "ALM" : "OK");
     display.display();
 }
 
 // ── TTN OTAA Callbacks ─────────────────────────────────────
-// LMIC erwartet diese drei Funktionen — Werte kommen aus secrets.h
+void os_getArtEui(u1_t* buf) { memcpy_P(buf, APPEUI, 8); }
+void os_getDevEui(u1_t* buf) { memcpy_P(buf, DEVEUI, 8); }
+void os_getDevKey(u1_t* buf) { memcpy_P(buf, APPKEY, 16); }
 
-void os_getArtEui(u1_t* buf) {
-    memcpy_P(buf, APPEUI, 8);
+// ── Session aus RTC laden ──────────────────────────────────
+void restoreSession() {
+    LMIC_setSession(rtcDevAddr, rtcNwkSKey, rtcAppSKey);
+    LMIC.seqnoUp = rtcSeqnoUp;
+    LMIC.seqnoDn = rtcSeqnoDn;
+    LMIC_setLinkCheckMode(0);
+    LMIC_setAdrMode(0);
+    Serial.println("[LMIC] Session aus RTC geladen — kein Re-Join nötig");
 }
 
-void os_getDevEui(u1_t* buf) {
-    memcpy_P(buf, DEVEUI, 8);
-}
-
-void os_getDevKey(u1_t* buf) {
-    memcpy_P(buf, APPKEY, 16);
+// ── Session in RTC speichern ───────────────────────────────
+void saveSession() {
+    memcpy(rtcNwkSKey, LMIC.nwkKey, 16);
+    memcpy(rtcAppSKey, LMIC.appKey, 16);
+    rtcDevAddr  = LMIC.devaddr;
+    rtcSeqnoUp  = LMIC.seqnoUp;
+    rtcSeqnoDn  = LMIC.seqnoDn;
+    rtcJoined   = true;
+    Serial.println("[RTC] Session gespeichert");
 }
 
 // ── Uplink senden ──────────────────────────────────────────
-// Payload: 1 Byte LED-Status (0x00 = aus, 0x01 = an)
 void sendUplink(osjob_t* j) {
-    if (LMIC.opmode & OP_TXRXPEND) {
-        Serial.println("[TX] Noch beschäftigt, warte...");
-        return;
-    }
+    if (LMIC.opmode & OP_TXRXPEND) return;
 
     uint8_t payload[2];
     payload[0] = ledState    ? 0x01 : 0x00;
     payload[1] = motionAlert ? 0x01 : 0x00;
 
     LMIC_setTxData2(1, payload, sizeof(payload), 0);
-
     txCount++;
     Serial.printf("[TX] Uplink #%lu — LED=%s Motion=%s\n",
                   txCount, ledState ? "ON" : "OFF", motionAlert ? "ALARM" : "OK");
-    updateOLED("Sende Uplink...", ledState ? "LED: AN" : "LED: AUS",
-               motionAlert ? "BEWEGUNG!" : String("TX #" + String(txCount)).c_str());
+    updateOLED("Sende Uplink...",
+               ledState ? "LED: AN" : "LED: AUS",
+               motionAlert ? "BEWEGUNG!" : "Status OK");
+}
+
+// ── Deep Sleep einleiten ───────────────────────────────────
+void goToSleep() {
+    saveSession();
+    rtcLedState = ledState;
+
+    Serial.println("[SLEEP] Gehe in Deep Sleep...");
+    Serial.printf("[SLEEP] Wakeup: PIR GPIO%d oder Timer %llu min\n",
+                  PIR_PIN, SLEEP_INTERVAL_US / 60000000ULL);
+    delay(100);
+
+    display.clearDisplay();
+    display.display();
+
+    // Wakeup durch PIR (steigende Flanke) oder Timer
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
+    esp_sleep_enable_timer_wakeup(SLEEP_INTERVAL_US);
+    esp_deep_sleep_start();
 }
 
 // ── LMIC Event-Handler ─────────────────────────────────────
 void onEvent(ev_t ev) {
     switch (ev) {
-
     case EV_JOINING:
-        Serial.println("[TTN] Verbinde mit TTN (OTAA)...");
+        Serial.println("[TTN] OTAA Join...");
         updateOLED("Verbinde TTN...", "OTAA Join...", "Bitte warten");
         break;
 
     case EV_JOINED:
-        Serial.println("[TTN] *** OTAA Join erfolgreich! ***");
-        joined = true;
-        // ADR aktivieren, Link-Check deaktivieren (spart Duty Cycle)
+        Serial.println("[TTN] *** Join erfolgreich! ***");
         LMIC_setLinkCheckMode(0);
-        updateOLED("TTN verbunden!", "OTAA OK", "Sende ersten TX...");
-        // Sofort ersten Uplink senden
+        LMIC_setAdrMode(0);
+        saveSession();
+        updateOLED("TTN verbunden!", "OTAA OK", "Sende Uplink...");
         os_setCallback(&sendJob, sendUplink);
         break;
 
     case EV_JOIN_FAILED:
-        Serial.println("[TTN] OTAA Join FEHLGESCHLAGEN — prüfe Keys!");
-        updateOLED("JOIN FAILED!", "Keys prüfen:", "secrets.h korrekt?");
+        Serial.println("[TTN] Join FEHLGESCHLAGEN");
+        updateOLED("JOIN FAILED!", "Keys prüfen", "secrets.h ?");
+        delay(2000);
+        goToSleep();
         break;
 
     case EV_TXCOMPLETE:
-        Serial.printf("[TTN] TX abgeschlossen (RXRSSI=%d)\n", LMIC.rssi);
+        Serial.printf("[TTN] TX done (RXRSSI=%d)\n", LMIC.rssi);
 
-        // Downlink empfangen? (RX1 oder RX2)
+        // Downlink empfangen?
         if (LMIC.dataLen > 0) {
-            Serial.printf("[RX] Downlink empfangen: %d Byte(s) auf Port %d\n",
-                          LMIC.dataLen, LMIC.frame[LMIC.dataBeg - 1]);
-
-            // Payload-Auswertung (1 Byte Kommando)
-            // 0x00 = LED aus
-            // 0x01 = LED an
-            // 0x02 = LED toggeln
-            if (LMIC.dataLen >= 1) {
-                uint8_t cmd = LMIC.frame[LMIC.dataBeg];
-                Serial.printf("[RX] Kommando: 0x%02X\n", cmd);
-
-                switch (cmd) {
-                    case 0x00:
-                        ledState = false;
-                        digitalWrite(LED_PIN, LOW);
-                        Serial.println("[CMD] LED → AUS");
-                        updateOLED("Downlink RX!", "Kommando: LED AUS", "OK");
-                        break;
-                    case 0x01:
-                        ledState = true;
-                        digitalWrite(LED_PIN, HIGH);
-                        Serial.println("[CMD] LED → AN");
-                        updateOLED("Downlink RX!", "Kommando: LED AN", "OK");
-                        break;
-                    case 0x02:
-                        ledState = !ledState;
-                        digitalWrite(LED_PIN, ledState ? HIGH : LOW);
-                        Serial.printf("[CMD] LED → TOGGLE → %s\n", ledState ? "AN" : "AUS");
-                        updateOLED("Downlink RX!", "Kommando: TOGGLE",
-                                   ledState ? "LED jetzt: AN" : "LED jetzt: AUS");
-                        break;
-                    default:
-                        Serial.printf("[CMD] Unbekanntes Kommando: 0x%02X\n", cmd);
-                        break;
-                }
+            uint8_t cmd = LMIC.frame[LMIC.dataBeg];
+            Serial.printf("[RX] Kommando: 0x%02X\n", cmd);
+            switch (cmd) {
+                case 0x00:
+                    ledState = false;
+                    digitalWrite(LED_PIN, LOW);
+                    Serial.println("[CMD] LED → AUS");
+                    updateOLED("Downlink!", "LED: AUS", "OK");
+                    break;
+                case 0x01:
+                    ledState = true;
+                    digitalWrite(LED_PIN, HIGH);
+                    Serial.println("[CMD] LED → AN");
+                    updateOLED("Downlink!", "LED: AN", "OK");
+                    break;
+                case 0x02:
+                    ledState = !ledState;
+                    digitalWrite(LED_PIN, ledState ? HIGH : LOW);
+                    Serial.printf("[CMD] LED → TOGGLE → %s\n", ledState ? "AN" : "AUS");
+                    updateOLED("Downlink!", "TOGGLE", ledState ? "LED: AN" : "LED: AUS");
+                    break;
             }
-        } else {
-            // Kein Downlink — normaler Status-Update
-            char rssi_buf[32];
-            snprintf(rssi_buf, sizeof(rssi_buf), "RSSI: %d dBm", LMIC.rssi);
-            updateOLED("TX OK", rssi_buf, String("Nächster TX: " + String(TX_INTERVAL_SEC) + "s").c_str());
+            delay(1000);
         }
 
-        // Nächsten Uplink einplanen
-        os_setTimedCallback(&sendJob,
-                            os_getTime() + sec2osticks(TX_INTERVAL_SEC),
-                            sendUplink);
+        txDone = true;  // Signal für loop() → schlafen gehen
         break;
 
-    case EV_TXSTART:
-        Serial.println("[TTN] TX gestartet");
-        break;
-
-    case EV_RXSTART:
-        Serial.println("[TTN] RX Fenster geöffnet");
-        break;
-
-    case EV_JOIN_TXCOMPLETE:
-        Serial.println("[TTN] Join TX abgeschlossen, warte auf Antwort...");
-        break;
-
-    case EV_RESET:
-        Serial.println("[TTN] Stack Reset");
-        break;
-
-    case EV_LINK_DEAD:
-        Serial.println("[TTN] Link tot — kein Downlink seit langer Zeit");
-        updateOLED("Link Dead!", "Kein Downlink", "Läuft weiter...");
-        break;
-
-    default:
-        Serial.printf("[TTN] Event: %d\n", (unsigned)ev);
-        break;
+    case EV_TXSTART:   Serial.println("[TTN] TX gestartet"); break;
+    case EV_RXSTART:   Serial.println("[TTN] RX Fenster"); break;
+    case EV_JOIN_TXCOMPLETE: Serial.println("[TTN] Join TX, warte..."); break;
+    default: Serial.printf("[TTN] Event: %d\n", (unsigned)ev); break;
     }
 }
 
 // ── Setup ──────────────────────────────────────────────────
 void setup() {
     Serial.begin(115200);
-    delay(500);
-    Serial.println("\n\n=== SmartGarden PoC v0.1 ===");
-    Serial.println("Hardware: TTGO LoRa32 V2.1");
+    delay(300);
 
-    // LED
+    WakeupReason reason = getWakeupReason();
+
+    Serial.println("\n=== SmartGarden Guard v0.2 ===");
+    Serial.printf("Wakeup: %s\n",
+        reason == WAKEUP_PIR   ? "PIR ALARM" :
+        reason == WAKEUP_TIMER ? "Timer" : "Reset/Boot");
+
+    // Hardware init
     pinMode(LED_PIN, OUTPUT);
-
-    // PIR
     pinMode(PIR_PIN, INPUT);
-    digitalWrite(LED_PIN, LOW);
 
-    // OLED init
+    // LED-Status aus RTC wiederherstellen
+    ledState = rtcLedState;
+    digitalWrite(LED_PIN, ledState ? HIGH : LOW);
+
+    // Bewegung: PIR-Wakeup = Alarm
+    motionAlert = (reason == WAKEUP_PIR);
+
+    // OLED
     Wire.begin(OLED_SDA, OLED_SCL);
-    if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
-        Serial.println("[OLED] Kein Display gefunden — weiter ohne OLED");
-    } else {
+    if (display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
         display.clearDisplay();
         display.setTextColor(WHITE);
         display.setTextSize(2);
         display.setCursor(0, 10);
         display.println("Smart");
-        display.println("Garden");
+        display.println("Guard");
         display.setTextSize(1);
         display.setCursor(0, 50);
-        display.println("PoC v0.1 — Starte...");
+        display.printf("%s", motionAlert ? "ALARM!" : "Status Update");
         display.display();
-        delay(1500);
+        delay(1000);
     }
 
-    updateOLED("Initialisiere...", "LMIC Setup", "EU868 / OTAA");
+    updateOLED(
+        motionAlert ? "BEWEGUNG!" : "Status Update",
+        rtcJoined   ? "Session: OK" : "Join TTN...",
+        "Sende Uplink..."
+    );
 
     // LMIC init
     os_init();
     LMIC_reset();
+    LMIC_setClockError(MAX_CLOCK_ERROR * 10 / 100);
 
-    // EU868: alle 8 Standard-Kanäle aktivieren
-    // (TTN nutzt 8 Kanäle: 868.1, 868.3, 868.5 + 5 weitere)
-    LMIC_setupChannel(0, 868100000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
-    LMIC_setupChannel(1, 868300000, DR_RANGE_MAP(DR_SF12, DR_SF7B), BAND_CENTI);
-    LMIC_setupChannel(2, 868500000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
-    LMIC_setupChannel(3, 867100000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
-    LMIC_setupChannel(4, 867300000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
-    LMIC_setupChannel(5, 867500000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
-    LMIC_setupChannel(6, 867700000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
-    LMIC_setupChannel(7, 867900000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
-    LMIC_setupChannel(8, 868800000, DR_RANGE_MAP(DR_FSK,  DR_FSK),  BAND_MILLI);
-
-    // Datenrate für ersten Join: SF9 (robuster als SF7, weniger Übertragungen)
-    LMIC_setDrTxpow(DR_SF9, 14);
-
-    // ADR (Adaptive Data Rate) — für Outdoor-Tests aktivieren
-    LMIC_setAdrMode(1);
-
-    Serial.println("[LMIC] Starte OTAA Join...");
-    LMIC_startJoining();
+    if (rtcJoined) {
+        // Session aus RTC laden — kein Re-Join!
+        restoreSession();
+        os_setCallback(&sendJob, sendUplink);
+    } else {
+        // Erster Boot — OTAA Join nötig
+        Serial.println("[LMIC] Starte OTAA Join...");
+        LMIC_setupChannel(0, 868100000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
+        LMIC_setupChannel(1, 868300000, DR_RANGE_MAP(DR_SF12, DR_SF7B), BAND_CENTI);
+        LMIC_setupChannel(2, 868500000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
+        LMIC_setupChannel(3, 867100000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
+        LMIC_setupChannel(4, 867300000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
+        LMIC_setupChannel(5, 867500000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
+        LMIC_setupChannel(6, 867700000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
+        LMIC_setupChannel(7, 867900000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
+        LMIC_setupChannel(8, 868800000, DR_RANGE_MAP(DR_FSK,  DR_FSK),  BAND_MILLI);
+        LMIC_setDrTxpow(DR_SF9, 14);
+        LMIC_startJoining();
+    }
 }
 
 // ── Loop ───────────────────────────────────────────────────
 void loop() {
     os_runloop_once();
 
-    // PIR Polling — Zustandsänderung erkennen und sofort senden
-    if (joined) {
-        bool pirNow = digitalRead(PIR_PIN) == HIGH;
-        if (pirNow != motionLastState) {
-            motionLastState = pirNow;
-            motionAlert     = pirNow;
-            Serial.printf("[PIR] Zustand: %s\n", pirNow ? "ALARM" : "KLAR");
-            if (!(LMIC.opmode & OP_TXRXPEND)) {
-                os_setCallback(&sendJob, sendUplink);
-            }
-        }
+    // Nach TX → schlafen
+    if (txDone) {
+        txDone = false;
+        delay(500);
+        goToSleep();
     }
 }
