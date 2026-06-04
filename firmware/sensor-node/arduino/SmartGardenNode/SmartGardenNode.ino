@@ -251,7 +251,6 @@ void setup() {
     // LMIC init
     os_init();
     LMIC_reset();
-    LMIC_setClockError(MAX_CLOCK_ERROR * 10 / 100);
 
     // EU868: alle 8 Standard-Kanäle aktivieren
     // (TTN nutzt 8 Kanäle: 868.1, 868.3, 868.5 + 5 weitere)

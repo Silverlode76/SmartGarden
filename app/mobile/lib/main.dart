@@ -54,7 +54,7 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
 
   Future<void> _fetchStatus() async {
     final url = Uri.parse(
-      '$firebaseDbUrl/devices/$ttnDeviceId.json'
+      '$firebaseDbUrl/devices/$ttnDeviceId/latest.json'
     );
     try {
       final response = await http.get(url);
@@ -62,19 +62,28 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
         final data = jsonDecode(response.body);
         if (data == null) return;
 
-        // TTN schreibt mit Push-Key — letzten Eintrag finden
-        final entries = (data as Map).values.toList();
-        if (entries.isEmpty) return;
+        // Letzten Eintrag nach received_at sortieren
+        Map<String, dynamic> latest;
+        if (data is Map && data.values.first is Map) {
+          // Mehrere Push-Key Einträge — neuesten finden
+          latest = (data as Map).values
+              .cast<Map>()
+              .reduce((a, b) {
+                final ta = (a['received_at'] ?? '') as String;
+                final tb = (b['received_at'] ?? '') as String;
+                return ta.compareTo(tb) >= 0 ? a : b;
+              }) as Map<String, dynamic>;
+        } else {
+          latest = data as Map<String, dynamic>;
+        }
 
-        // Letzten Uplink nehmen
-        final last = entries.last;
-        final frmPayload = last['uplink_message']?['frm_payload'] as String?;
+        final frmPayload = latest['uplink_message']?['frm_payload'] as String?;
         if (frmPayload == null) return;
 
         final bytes  = base64Decode(frmPayload);
         final led    = bytes.isNotEmpty ? bytes[0] == 0x01 : false;
         final motion = bytes.length > 1 ? bytes[1] == 0x01 : false;
-        final time   = last['received_at'] as String? ?? '—';
+        final time   = latest['received_at'] as String? ?? '—';
 
         setState(() {
           _ledState    = led;
