@@ -1,155 +1,173 @@
-# Firmware State Machine & Systemsequenz — Sensor Node v0.1
+# Firmware State Machine & Systemsequenz
 
-## 1. State Machine (LMIC + PIR)
+## Guard Node v0.2 (Deep Sleep + PIR Wakeup)
 
-Der Node durchläuft folgende Zustände:
+---
+
+## 1. Haupt-State Machine (Deep Sleep Zyklus)
 
 ```mermaid
 stateDiagram-v2
-    [*] --> INIT : Power On / Reset
+    [*] --> BOOT : Power On
 
-    INIT --> JOINING : os_init() + LMIC_startJoining()
+    BOOT --> CHECK_RTC : setup() aufgerufen\nWakeup-Grund ermitteln
 
-    JOINING --> JOINING    : EV_JOIN_TXCOMPLETE\n(warte auf Antwort, Duty Cycle)
-    JOINING --> IDLE       : EV_JOINED\n(OTAA erfolgreich, erster Uplink sofort)
-    JOINING --> JOIN_FAILED : EV_JOIN_FAILED\n(Keys prüfen)
+    CHECK_RTC --> JOINING     : rtcJoined = false\n(Erster Boot oder Reset)
+    CHECK_RTC --> TRANSMITTING : rtcJoined = true\n(Session aus RTC geladen)
 
-    JOIN_FAILED --> JOINING : LMIC_startJoining()\n(automatischer Retry)
+    JOINING --> JOINING      : EV_JOIN_TXCOMPLETE\n(warte auf Accept, Duty Cycle)
+    JOINING --> TRANSMITTING : EV_JOINED\n(Session gespeichert in RTC)
+    JOINING --> DEEP_SLEEP   : EV_JOIN_FAILED\n(schlafen, später nochmal)
 
-    IDLE --> TRANSMITTING  : Timer (60s) oder PIR-Zustandsänderung
+    TRANSMITTING --> RX_WINDOW : EV_TXSTART\n(Uplink gesendet)
 
-    TRANSMITTING --> RX_WINDOW : EV_TXSTART\n(Paket gesendet)
-    RX_WINDOW --> IDLE         : EV_TXCOMPLETE ohne Downlink\n(nächster TX in 60s)
-    RX_WINDOW --> CMD_EXEC     : EV_TXCOMPLETE mit Downlink\n(Kommando empfangen)
+    RX_WINDOW --> CMD_EXEC    : EV_TXCOMPLETE + Downlink\n(LED-Kommando empfangen)
+    RX_WINDOW --> ALARM_CHECK : EV_TXCOMPLETE ohne Downlink
 
-    CMD_EXEC --> IDLE : LED-Kommando ausgeführt\n(0x00/0x01/0x02)\nnächster TX in 60s
+    CMD_EXEC --> ALARM_CHECK : Kommando ausgeführt
 
-    IDLE --> IDLE : PIR polling (loop)\nkeine Änderung
+    ALARM_CHECK --> TRANSMITTING : PIR noch aktiv\nUND alarmCount < 5\n(warte 30s, dann nochmal)
+    ALARM_CHECK --> WAIT_BEFORE_SLEEP : PIR klar\nODER alarmCount >= 5
 
-    note right of TRANSMITTING
-        Payload 2 Bytes:
-        [0] LED-Status (0x00/0x01)
-        [1] Motion (0x00/0x01)
-    end note
+    WAIT_BEFORE_SLEEP --> DEEP_SLEEP : 10s warten\n(für eventuelle Downlinks)
 
-    note right of RX_WINDOW
-        RX1: 5s nach TX
-        RX2: 6s nach TX (SF9, 869.525 MHz)
-        Downlink kann ausbleiben
-        (Duty Cycle Gateway)
-    end note
+    DEEP_SLEEP --> PIR_WAIT  : goToSleep()\nPIR noch HIGH?
+
+    PIR_WAIT --> PIR_WAIT    : PIR = HIGH\n(warten bis KLAR,\nmax. 5 Minuten)
+    PIR_WAIT --> SLEEPING    : PIR = LOW\n(steigende Flanke möglich)
+
+    SLEEPING --> BOOT        : PIR Wakeup\n(GPIO13 steigende Flanke)
+    SLEEPING --> BOOT        : Timer Wakeup\n(15 Minuten)
 ```
 
-### Zustandsbeschreibung
+---
+
+## 2. Wakeup-Logik
+
+```mermaid
+flowchart TD
+    A[ESP32 wacht auf] --> B{Wakeup-Grund?}
+
+    B -->|EXT0 - PIR HIGH| C[WAKEUP_PIR\nmotionAlert = true]
+    B -->|Timer| D[WAKEUP_TIMER\nPIR einmalig lesen]
+    B -->|Kein Grund| E[WAKEUP_RESET\nNormaler Boot]
+
+    D --> F{PIR aktuell HIGH?}
+    F -->|Ja| C
+    F -->|Nein| G[motionAlert = false]
+
+    C --> H{rtcJoined?}
+    G --> H
+    E --> I[rtcJoined = false\nOTAA Join]
+
+    H -->|Ja| J[Session aus RTC laden\nsofort Uplink senden]
+    H -->|Nein| I
+```
+
+---
+
+## 3. Alarm-Logik nach TX
+
+```mermaid
+flowchart TD
+    A[EV_TXCOMPLETE] --> B{Downlink\nempfangen?}
+
+    B -->|Ja| C[LED Kommando\nausführen]
+    B -->|Nein| D{PIR aktiv?}
+    C --> D
+
+    D -->|Nein| E[alarmCount = 0\nWarte 10s]
+    D -->|Ja| F{alarmCount\n< 5?}
+
+    F -->|Ja| G[alarmCount++\nWarte 30s\ndann nochmal TX]
+    F -->|Nein| H[alarmCount = 0\nMax erreicht\nWarte 10s]
+
+    E --> I[triggerSleep\ntxDone = true]
+    H --> I
+    G --> J[sendUplink]
+
+    I --> K[goToSleep]
+```
+
+---
+
+## 4. Zustandsbeschreibung
 
 | Zustand | Beschreibung | OLED-Anzeige |
 |---------|-------------|--------------|
-| `INIT` | Hardware-Init, LMIC-Setup, EU868-Kanäle | "Initialisiere..." |
-| `JOINING` | OTAA Join-Request wird gesendet, warte auf Accept | "Verbinde TTN..." |
-| `JOIN_FAILED` | Join fehlgeschlagen (falsche Keys) | "JOIN FAILED!" |
-| `IDLE` | Verbunden, warte auf Timer oder PIR-Event | "TX OK / RSSI: x dBm" |
-| `TRANSMITTING` | Uplink wird über LoRa gesendet | "Sende Uplink..." |
-| `RX_WINDOW` | Empfangsfenster offen (RX1/RX2) | — |
-| `CMD_EXEC` | Downlink-Kommando wird ausgeführt | "Downlink RX!" |
-
-### PIR-Logik (Polling im Loop)
-
-```
-loop() jeden Tick:
-  pirNow = digitalRead(PIR_PIN)
-  if pirNow != motionLastState:
-    motionLastState = pirNow
-    motionAlert = pirNow
-    if NOT TXRXPEND:
-      → sofortiger Uplink (überspringt 60s-Timer)
-```
+| `BOOT` | setup() aufgerufen, Hardware init | "SmartGarden Guard v0.2" |
+| `CHECK_RTC` | Wakeup-Grund prüfen, RTC-Daten laden | — |
+| `JOINING` | OTAA Join-Request, warte auf Accept | "Join TTN..." |
+| `TRANSMITTING` | Uplink wird gesendet | "Sende Uplink..." |
+| `RX_WINDOW` | RX1/RX2 Fenster offen (5-6s nach TX) | — |
+| `CMD_EXEC` | LED-Kommando ausführen | "Downlink! LED: AN/AUS" |
+| `ALARM_CHECK` | PIR-Status prüfen, alarmCount auswerten | — |
+| `WAIT_BEFORE_SLEEP` | 10s warten für eventuelle Downlinks | "Warte 10s... Deep Sleep" |
+| `PIR_WAIT` | Warten bis PIR=LOW vor Sleep | "Warte auf KLAR" |
+| `SLEEPING` | Deep Sleep (~0.15mA) | Display aus |
 
 ---
 
-## 2. Sequenzdiagramm — Uplink & Downlink
+## 5. RTC-Speicher (überlebt Deep Sleep)
 
-```mermaid
-sequenceDiagram
-    participant Node as TTGO Node
-    participant GW as LoRa Gateway
-    participant TTN as TTN (eu1)
-    participant App as Flutter App
+| Variable | Typ | Inhalt |
+|----------|-----|--------|
+| `rtcJoined` | bool | Session gültig? |
+| `rtcNwkSKey` | uint8_t[16] | Network Session Key |
+| `rtcAppSKey` | uint8_t[16] | Application Session Key |
+| `rtcDevAddr` | uint32_t | Temporäre TTN-Adresse |
+| `rtcSeqnoUp` | uint32_t | Uplink Frame Counter |
+| `rtcSeqnoDn` | uint32_t | Downlink Frame Counter |
+| `rtcLedState` | bool | LED an/aus |
+| `rtcAlarmCount` | uint8_t | Anzahl Alarm-Uplinks (max. 5) |
 
-    Note over Node: Boot / Reset
-
-    Node->>GW: Join Request (OTAA, SF9, 868.5 MHz)
-    GW->>TTN: Forward Join Request
-    TTN->>GW: Join Accept
-    GW->>Node: Join Accept (RX1, 5s delay)
-    Note over Node: EV_JOINED → joined=true
-
-    loop alle 60s (oder PIR-Event)
-        Node->>GW: Uplink [LED, Motion] FPort=1 SF7
-        GW->>TTN: Forward Uplink
-        TTN->>App: MQTT Publish\nv3/smartgardenollie@ttn/devices/.../up
-        Note over App: frm_payload dekodieren\nLED & Motion Status anzeigen
-
-        alt Downlink in Queue
-            TTN->>GW: Schedule Downlink (RX1, 5s)
-            GW->>Node: Downlink [0x00/0x01/0x02] FPort=1
-            Note over Node: EV_TXCOMPLETE\nKommando ausführen
-        else kein Downlink
-            Note over Node: EV_TXCOMPLETE\nnächster TX in 60s
-        end
-    end
-```
-
-### Downlink-Pfad (Flutter → Node)
-
-```mermaid
-sequenceDiagram
-    participant App as Flutter App
-    participant TTN as TTN (eu1)
-    participant GW as LoRa Gateway
-    participant Node as TTGO Node
-
-    App->>TTN: MQTT Publish\nv3/.../down/push\nfrm_payload: base64([0x02])
-    Note over TTN: Downlink in Queue\n(wartet auf nächsten Uplink)
-
-    Node->>GW: Uplink (regulär, 60s Zyklus)
-    GW->>TTN: Forward Uplink
-    TTN->>GW: Downlink anhängen (RX1 Delay: 5s)
-    GW->>Node: Downlink übertragen
-    Note over Node: 0x02 → LED Toggle
-    Node->>GW: nächster Uplink mit\naktualisiertem LED-Status
-    GW->>TTN: Forward Uplink
-    TTN->>App: MQTT Update\n(LED-Status aktualisiert)
-```
+> **Wichtig:** `rtcSeqnoUp` und `rtcSeqnoDn` müssen gespeichert werden — TTN verwirft Pakete mit zu niedrigem Counter als Replay-Angriff.
 
 ---
 
-## 3. Payload-Format
+## 6. Energiebudget Guard v0.2
+
+| Zustand | Strom | Dauer | Energie/Wakeup |
+|---------|-------|-------|----------------|
+| Deep Sleep | ~0.15 mA | ~15 min | ~0.56 mAh |
+| Boot + LMIC init | ~80 mA | ~0.5s | ~0.01 mAh |
+| TX Uplink | ~120 mA | ~0.2s | ~0.007 mAh |
+| RX Fenster | ~12 mA | ~1s | ~0.003 mAh |
+| **Gesamt pro Zyklus** | | | **~0.58 mAh** |
+| **Tagesverbrauch** | | 96 Zyklen | **~55 mAh/Tag** |
+| **2× 18650 (5000 mAh)** | | | **~90 Tage** |
+
+> Bei PIR-Alarm: bis zu 5 Uplinks × 30s = max. 2.5 Minuten aktiv → ca. 5 mAh pro Alarm-Ereignis.
+
+---
+
+## 7. Payload-Format
 
 ### Uplink (Node → TTN, FPort 1)
 
 | Byte | Wert | Bedeutung |
 |------|------|-----------|
-| 0    | `0x00` | LED aus |
-| 0    | `0x01` | LED an |
-| 1    | `0x00` | Kein Bewegungsalarm |
-| 1    | `0x01` | Bewegung erkannt (PIR HIGH) |
+| 0 | `0x00` | LED aus |
+| 0 | `0x01` | LED an |
+| 1 | `0x00` | Kein Alarm |
+| 1 | `0x01` | Bewegung erkannt |
 
 ### Downlink (TTN → Node, FPort 1)
 
 | Byte | Wert | Bedeutung |
 |------|------|-----------|
-| 0    | `0x00` | LED ausschalten |
-| 0    | `0x01` | LED einschalten |
-| 0    | `0x02` | LED toggeln |
+| 0 | `0x00` | LED ausschalten |
+| 0 | `0x01` | LED einschalten |
+| 0 | `0x02` | LED toggeln |
 
 ---
 
-## 4. Timing-Übersicht
+## 8. Bekannte Einschränkungen
 
-| Parameter | Wert | Hinweis |
-|-----------|------|---------|
-| TX-Intervall | 60s (PoC) / 900s (Produktion) | Duty Cycle: ~0.08% |
-| Join SF | SF9 | Robuster als SF7 für ersten Join |
-| Data SF | SF7BW125 | ADR passt automatisch an |
-| RX1 Delay | 5s | TTN Standard |
-| Downlink-Zustellung | 1–3 TX-Zyklen | Gateway Duty Cycle abhängig |
+| Problem | Ursache | Status |
+|---------|---------|--------|
+| Join dauert 1-5 Min | EU868 Duty Cycle + Gateway-Timing | ✅ durch RTC-Session gelöst (nach erstem Join) |
+| PIR HIGH → kein Wakeup | EXT0 nur bei steigender Flanke | ✅ gefixt: warten bis PIR=LOW vor Sleep |
+| Endless Alarm-Loop | PIR dauerhaft aktiv | ✅ gefixt: max. 5 Alarm-Uplinks |
+| SF10 nach ADR | ADR passt Rate an | ✅ ADR deaktiviert (festes SF9) |
+| Downlink sporadisch | Gateway Duty Cycle / Timing | ⚠️ LoRaWAN by design (best-effort) |
