@@ -86,7 +86,7 @@ void os_getDevKey(u1_t* buf) { memcpy_P(buf, APPKEY, 16); }
 
 // ── Session aus RTC laden ──────────────────────────────────
 void restoreSession() {
-    LMIC_setSession(rtcDevAddr, rtcNwkSKey, rtcAppSKey);
+    LMIC_setSession(0x13, rtcDevAddr, rtcNwkSKey, rtcAppSKey);
     LMIC.seqnoUp = rtcSeqnoUp;
     LMIC.seqnoDn = rtcSeqnoDn;
     LMIC_setLinkCheckMode(0);
@@ -97,7 +97,7 @@ void restoreSession() {
 // ── Session in RTC speichern ───────────────────────────────
 void saveSession() {
     memcpy(rtcNwkSKey, LMIC.nwkKey, 16);
-    memcpy(rtcAppSKey, LMIC.appKey, 16);
+    memcpy(rtcAppSKey, LMIC.artKey, 16);
     rtcDevAddr  = LMIC.devaddr;
     rtcSeqnoUp  = LMIC.seqnoUp;
     rtcSeqnoDn  = LMIC.seqnoDn;
@@ -253,7 +253,7 @@ void setup() {
     // LMIC init
     os_init();
     LMIC_reset();
-    LMIC_setClockError(MAX_CLOCK_ERROR * 10 / 100);
+    LMIC_setClockError(MAX_CLOCK_ERROR * 30 / 100);
 
     if (rtcJoined) {
         // Session aus RTC laden — kein Re-Join!
