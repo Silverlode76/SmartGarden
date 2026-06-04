@@ -195,7 +195,22 @@ void onEvent(ev_t ev) {
             delay(1000);
         }
 
-        txDone = true;  // Signal für loop() → schlafen gehen
+        // Nächster Uplink wenn PIR noch aktiv (Alarm dauert an)
+        // oder nach 30s schlafen gehen
+        if (motionAlert) {
+            Serial.println("[SLEEP] PIR noch aktiv — warte 30s dann nochmal senden");
+            updateOLED("PIR aktiv...", "Warte 30s", "dann nochmal TX");
+            os_setTimedCallback(&sendJob,
+                                os_getTime() + sec2osticks(30),
+                                sendUplink);
+        } else {
+            Serial.println("[SLEEP] TX fertig — warte 10s dann schlafen");
+            updateOLED("TX fertig", "Warte 10s...", "dann Deep Sleep");
+            // 10s wach bleiben für eventuelle Downlinks dann schlafen
+            os_setTimedCallback(&sendJob,
+                                os_getTime() + sec2osticks(10),
+                                [](osjob_t* j) { txDone = true; });
+        }
         break;
 
     case EV_TXSTART:   Serial.println("[TTN] TX gestartet"); break;
@@ -225,8 +240,9 @@ void setup() {
     ledState = rtcLedState;
     digitalWrite(LED_PIN, ledState ? HIGH : LOW);
 
-    // Bewegung: PIR-Wakeup = Alarm
-    motionAlert = (reason == WAKEUP_PIR);
+    // Bewegung: PIR-Wakeup = Alarm, oder PIR gerade aktiv beim Timer-Wakeup
+    motionAlert = (reason == WAKEUP_PIR) || (digitalRead(PIR_PIN) == HIGH);
+    Serial.printf("[PIR] Status beim Start: %s\n", motionAlert ? "ALARM" : "KLAR");
 
     // OLED
     Wire.begin(OLED_SDA, OLED_SCL);
@@ -253,7 +269,7 @@ void setup() {
     // LMIC init
     os_init();
     LMIC_reset();
-    LMIC_setClockError(MAX_CLOCK_ERROR * 30 / 100);
+    
 
     if (rtcJoined) {
         // Session aus RTC laden — kein Re-Join!
