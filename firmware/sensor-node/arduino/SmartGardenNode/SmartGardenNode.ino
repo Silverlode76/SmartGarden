@@ -43,6 +43,10 @@ RTC_DATA_ATTR uint32_t rtcDevAddr      = 0;
 RTC_DATA_ATTR uint32_t rtcSeqnoUp      = 0;
 RTC_DATA_ATTR uint32_t rtcSeqnoDn      = 0;
 RTC_DATA_ATTR bool     rtcLedState     = false;
+RTC_DATA_ATTR uint8_t  rtcAlarmCount   = 0;    // Anzahl Alarm-Uplinks seit letztem Sleep
+
+// ── Max. Alarm-Uplinks vor erzwungenem Sleep ───────────────
+#define MAX_ALARM_UPLINKS  5
 
 // ── Wakeup-Grund ───────────────────────────────────────────
 enum WakeupReason { WAKEUP_RESET, WAKEUP_TIMER, WAKEUP_PIR };
@@ -219,18 +223,26 @@ void onEvent(ev_t ev) {
             delay(1000);
         }
 
-        // Nächster Uplink wenn PIR noch aktiv (Alarm dauert an)
-        // oder nach 30s schlafen gehen
-        if (motionAlert) {
-            Serial.println("[SLEEP] PIR noch aktiv — warte 30s dann nochmal senden");
-            updateOLED("PIR aktiv...", "Warte 30s", "dann nochmal TX");
+        // PIR noch aktiv UND maximale Alarm-Uplinks noch nicht erreicht?
+        if (motionAlert && rtcAlarmCount < MAX_ALARM_UPLINKS) {
+            rtcAlarmCount++;
+            Serial.printf("[SLEEP] PIR aktiv — Alarm TX %d/%d, warte 30s\n",
+                          rtcAlarmCount, MAX_ALARM_UPLINKS);
+            updateOLED("PIR aktiv...",
+                       String("Alarm " + String(rtcAlarmCount) + "/" + String(MAX_ALARM_UPLINKS)).c_str(),
+                       "Warte 30s...");
             os_setTimedCallback(&sendJob,
                                 os_getTime() + sec2osticks(30),
                                 sendUplink);
         } else {
-            Serial.println("[SLEEP] TX fertig — warte 10s dann schlafen");
+            // Kein Alarm ODER max. Uplinks erreicht → schlafen
+            if (rtcAlarmCount >= MAX_ALARM_UPLINKS) {
+                Serial.println("[SLEEP] Max. Alarm-Uplinks erreicht — erzwinge Sleep");
+            } else {
+                Serial.println("[SLEEP] PIR klar — warte 10s dann schlafen");
+            }
+            rtcAlarmCount = 0;  // Zähler zurücksetzen
             updateOLED("TX fertig", "Warte 10s...", "dann Deep Sleep");
-            // 10s wach bleiben für eventuelle Downlinks dann schlafen
             os_setTimedCallback(&sendJob,
                                 os_getTime() + sec2osticks(10),
                                 triggerSleep);
