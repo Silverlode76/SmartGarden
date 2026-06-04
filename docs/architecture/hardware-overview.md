@@ -272,6 +272,67 @@ Sicherheitspuffer für lange Schlechtwetterperioden im Winter.
 
 ---
 
+## PoC Verdrahtung — TTGO LoRa32 V2.1 (Inbetriebnahme v0.1)
+
+Aktuelle Verdrahtung des laufenden Prototyps (Stand: Juni 2026):
+
+### Angeschlossene Komponenten
+
+```
+TTGO LoRa32 V2.1
+│
+├── OLED (onboard, I2C)
+│   ├── SDA → GPIO 21
+│   └── SCL → GPIO 22
+│
+├── HC-SR501 PIR Bewegungsmelder
+│   ├── VCC → 5V (USB-Pin des TTGO!)  ⚠️ nicht 3.3V!
+│   ├── GND → GND
+│   ├── OUT → GPIO 13
+│   ├── Jumper: L (Repeating Trigger)
+│   ├── Poti links: Empfindlichkeit (~mittig)
+│   └── Poti rechts: Haltezeit (~kurz, für Tests)
+│
+└── BME280 (geplant, noch nicht angeschlossen)
+    ├── VCC → 3.3V
+    ├── GND → GND
+    ├── SDA → GPIO 21  ← gleicher I2C-Bus wie OLED (Adresse 0x76/0x77)
+    └── SCL → GPIO 22  ← gleicher I2C-Bus wie OLED
+```
+
+### I2C Bus Belegung
+
+| Gerät | Adresse | GPIO SDA | GPIO SCL |
+|-------|---------|----------|----------|
+| OLED SSD1306 | `0x3C` | 21 | 22 |
+| BME280 | `0x76` oder `0x77` | 21 | 22 |
+
+Kein Konflikt — I2C ist ein Bus, mehrere Geräte parallel möglich.
+
+### Wichtige Hinweise HC-SR501
+
+- **5V Versorgung:** HC-SR501 benötigt 5V (nicht 3.3V!) — am TTGO den 5V-Pin verwenden
+- **Signal ist 3.3V-kompatibel:** OUT-Pin gibt 3.3V aus → direkt an ESP32 GPIO
+- **30s Kalibrierungszeit** nach dem Einschalten — keine Fehlalarme in dieser Phase
+- **Jumper L** (Repeating Trigger) für kontinuierliche Erkennung empfohlen
+- **AM312** wäre die bessere Wahl für den Produktiveinsatz (3.3V, kleiner)
+
+### Pin-Belegung aktueller PoC
+
+| GPIO | Funktion | Angeschlossen |
+|------|----------|---------------|
+| 21 | I2C SDA | OLED + (BME280 geplant) |
+| 22 | I2C SCL | OLED + (BME280 geplant) |
+| 13 | PIR Signal | HC-SR501 OUT |
+| 25 | Onboard LED | (intern) |
+| 18 | LoRa NSS | (intern) |
+| 23 | LoRa RST | (intern) |
+| 26 | LoRa DIO0 | (intern) |
+| 33 | LoRa DIO1 | (intern) |
+| 32 | LoRa DIO2 | (intern) |
+
+---
+
 ## LoRaWAN Konfiguration
 
 | Parameter | Wert |
