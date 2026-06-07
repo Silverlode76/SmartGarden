@@ -36,17 +36,21 @@ const lmic_pinmap lmic_pins = {
 #define SLEEP_INTERVAL_US  (15ULL * 60 * 1000000)  // 15 Minuten
 
 // ── RTC-Speicher (überlebt Deep Sleep) ────────────────────
-RTC_DATA_ATTR bool     rtcJoined       = false;
-RTC_DATA_ATTR uint8_t  rtcNwkSKey[16]  = {0};
-RTC_DATA_ATTR uint8_t  rtcAppSKey[16]  = {0};
-RTC_DATA_ATTR uint32_t rtcDevAddr      = 0;
-RTC_DATA_ATTR uint32_t rtcSeqnoUp      = 0;
-RTC_DATA_ATTR uint32_t rtcSeqnoDn      = 0;
+// Session-Persistenz wurde entfernt: RTC-Restore führte zu
+// Frame-Counter-/Kanalproblemen, bei denen Uplinks vom Network
+// Server still verworfen wurden. Stabiler Ansatz: nach jedem
+// Sleep frisch per OTAA joinen (Gateway ist in Reichweite,
+// Join geht in <1s).
 RTC_DATA_ATTR bool     rtcLedState     = false;
 RTC_DATA_ATTR uint8_t  rtcAlarmCount   = 0;    // Anzahl Alarm-Uplinks seit letztem Sleep
 
 // ── Max. Alarm-Uplinks vor erzwungenem Sleep ───────────────
 #define MAX_ALARM_UPLINKS  5
+
+// ── TEST-MODUS: Deep Sleep deaktiviert ─────────────────────
+// Knoten bleibt wach und meldet jede PIR-Zustandsänderung sofort per Uplink.
+// So lässt sich ALARM/KLAR-Übertragung nach TTN ohne Sleep-Zyklen testen.
+#define TEST_NO_SLEEP  false
 
 // ── Wakeup-Grund ───────────────────────────────────────────
 enum WakeupReason { WAKEUP_RESET, WAKEUP_TIMER, WAKEUP_PIR };
@@ -59,10 +63,11 @@ WakeupReason getWakeupReason() {
 }
 
 // ── Zustand ────────────────────────────────────────────────
-static bool     ledState    = false;
-static bool     motionAlert = false;
-static uint32_t txCount     = 0;
-static bool     txDone      = false;
+static bool     ledState        = false;
+static bool     motionAlert     = false;
+static bool     motionLastState = false;
+static uint32_t txCount         = 0;
+static bool     txDone          = false;
 static osjob_t  sendJob;
 
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RST);
@@ -88,27 +93,6 @@ void os_getArtEui(u1_t* buf) { memcpy_P(buf, APPEUI, 8); }
 void os_getDevEui(u1_t* buf) { memcpy_P(buf, DEVEUI, 8); }
 void os_getDevKey(u1_t* buf) { memcpy_P(buf, APPKEY, 16); }
 
-// ── Session aus RTC laden ──────────────────────────────────
-void restoreSession() {
-    LMIC_setSession(0x13, rtcDevAddr, rtcNwkSKey, rtcAppSKey);
-    LMIC.seqnoUp = rtcSeqnoUp;
-    LMIC.seqnoDn = rtcSeqnoDn;
-    LMIC_setLinkCheckMode(0);
-    LMIC_setAdrMode(0);
-    Serial.println("[LMIC] Session aus RTC geladen — kein Re-Join nötig");
-}
-
-// ── Session in RTC speichern ───────────────────────────────
-void saveSession() {
-    memcpy(rtcNwkSKey, LMIC.nwkKey, 16);
-    memcpy(rtcAppSKey, LMIC.artKey, 16);
-    rtcDevAddr  = LMIC.devaddr;
-    rtcSeqnoUp  = LMIC.seqnoUp;
-    rtcSeqnoDn  = LMIC.seqnoDn;
-    rtcJoined   = true;
-    Serial.println("[RTC] Session gespeichert");
-}
-
 // ── Sleep einleiten nach Warte-Timer ──────────────────────
 void triggerSleep(osjob_t* j) {
     txDone = true;
@@ -133,7 +117,11 @@ void sendUplink(osjob_t* j) {
 
 // ── Deep Sleep einleiten ───────────────────────────────────
 void goToSleep() {
-    saveSession();
+    if (TEST_NO_SLEEP) {
+        Serial.println("[TEST] Sleep deaktiviert — bleibe wach (TEST_NO_SLEEP)");
+        return;
+    }
+
     rtcLedState = ledState;
 
     // Bug-Fix: PIR noch HIGH? Warten bis KLAR sonst kein Wakeup möglich!
@@ -181,7 +169,6 @@ void onEvent(ev_t ev) {
         Serial.println("[TTN] *** Join erfolgreich! ***");
         LMIC_setLinkCheckMode(1);  // Link Check AN — erkennt verlorene Verbindung
         LMIC_setAdrMode(0);
-        saveSession();
         updateOLED("TTN verbunden!", "OTAA OK", "Sende Uplink...");
         os_setCallback(&sendJob, sendUplink);
         break;
@@ -223,6 +210,12 @@ void onEvent(ev_t ev) {
             delay(1000);
         }
 
+        // PIR-Status neu auslesen — motionAlert war bisher nur der Stand
+        // beim Boot und wurde nie aktualisiert (daher blieb "ALARM" hängen,
+        // selbst wenn die Bewegung längst vorbei war).
+        motionAlert = (digitalRead(PIR_PIN) == HIGH);
+        Serial.printf("[PIR] Status vor Entscheidung: %s\n", motionAlert ? "ALARM" : "KLAR");
+
         // PIR noch aktiv UND maximale Alarm-Uplinks noch nicht erreicht?
         if (motionAlert && rtcAlarmCount < MAX_ALARM_UPLINKS) {
             rtcAlarmCount++;
@@ -250,10 +243,9 @@ void onEvent(ev_t ev) {
         break;
 
     case EV_LINK_DEAD:
-        // Keine Downlinks seit langer Zeit → Session ungültig
-        Serial.println("[TTN] Link tot — Session invalidieren, neu joinen beim nächsten Boot");
-        updateOLED("Link Dead!", "Session reset", "Schlafe...");
-        rtcJoined = false;  // erzwingt OTAA Join beim nächsten Aufwachen
+        // Keine Downlinks seit langer Zeit — beim nächsten Wakeup wird ohnehin neu gejoint
+        Serial.println("[TTN] Link tot — schlafe, beim nächsten Wakeup neuer Join");
+        updateOLED("Link Dead!", "Schlafe...", "");
         delay(1000);
         goToSleep();
         break;
@@ -307,7 +299,7 @@ void setup() {
 
     updateOLED(
         motionAlert ? "BEWEGUNG!" : "Status Update",
-        rtcJoined   ? "Session: OK" : "Join TTN...",
+        "Join TTN...",
         "Sende Uplink..."
     );
 
@@ -327,21 +319,29 @@ void setup() {
     LMIC_setupChannel(7, 867900000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
     LMIC_setupChannel(8, 868800000, DR_RANGE_MAP(DR_FSK,  DR_FSK),  BAND_MILLI);
 
-    if (rtcJoined) {
-        // Session aus RTC laden — kein Re-Join!
-        restoreSession();
-        os_setCallback(&sendJob, sendUplink);
-    } else {
-        // Erster Boot — OTAA Join nötig
-        Serial.println("[LMIC] Starte OTAA Join...");
-        LMIC_setDrTxpow(DR_SF9, 14);
-        LMIC_startJoining();
-    }
+    // Immer frisch joinen — stabiler als RTC-Session-Restore (siehe Tests)
+    Serial.println("[LMIC] Starte OTAA Join...");
+    LMIC_setDrTxpow(DR_SF9, 14);
+    LMIC_startJoining();
 }
 
 // ── Loop ───────────────────────────────────────────────────
 void loop() {
     os_runloop_once();
+
+    if (TEST_NO_SLEEP) {
+        // PIR-Zustandsänderung sofort melden (kein Deep-Sleep-Wakeup zur Erkennung)
+        bool pirNow = digitalRead(PIR_PIN) == HIGH;
+        if (pirNow != motionLastState) {
+            motionLastState = pirNow;
+            motionAlert     = pirNow;
+            Serial.printf("[PIR] Zustandswechsel: %s\n", pirNow ? "ALARM" : "KLAR");
+            if (!(LMIC.opmode & OP_TXRXPEND)) {
+                os_setCallback(&sendJob, sendUplink);
+            }
+        }
+        return;
+    }
 
     // Nach TX → schlafen
     if (txDone) {
