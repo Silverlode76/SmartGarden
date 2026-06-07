@@ -179,7 +179,7 @@ void onEvent(ev_t ev) {
 
     case EV_JOINED:
         Serial.println("[TTN] *** Join erfolgreich! ***");
-        LMIC_setLinkCheckMode(0);
+        LMIC_setLinkCheckMode(1);  // Link Check AN — erkennt verlorene Verbindung
         LMIC_setAdrMode(0);
         saveSession();
         updateOLED("TTN verbunden!", "OTAA OK", "Sende Uplink...");
@@ -247,6 +247,15 @@ void onEvent(ev_t ev) {
                                 os_getTime() + sec2osticks(10),
                                 triggerSleep);
         }
+        break;
+
+    case EV_LINK_DEAD:
+        // Keine Downlinks seit langer Zeit → Session ungültig
+        Serial.println("[TTN] Link tot — Session invalidieren, neu joinen beim nächsten Boot");
+        updateOLED("Link Dead!", "Session reset", "Schlafe...");
+        rtcJoined = false;  // erzwingt OTAA Join beim nächsten Aufwachen
+        delay(1000);
+        goToSleep();
         break;
 
     case EV_TXSTART:   Serial.println("[TTN] TX gestartet"); break;
