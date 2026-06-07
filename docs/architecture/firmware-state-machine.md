@@ -10,13 +10,10 @@
 stateDiagram-v2
     [*] --> BOOT : Power On
 
-    BOOT --> CHECK_RTC : setup() aufgerufen\nWakeup-Grund ermitteln
-
-    CHECK_RTC --> JOINING     : rtcJoined = false\n(Erster Boot oder Reset)
-    CHECK_RTC --> TRANSMITTING : rtcJoined = true\n(Session aus RTC geladen)
+    BOOT --> JOINING : setup() aufgerufen\nWakeup-Grund ermitteln\nimmer frischer OTAA-Join
 
     JOINING --> JOINING      : EV_JOIN_TXCOMPLETE\n(warte auf Accept, Duty Cycle)
-    JOINING --> TRANSMITTING : EV_JOINED\n(Session gespeichert in RTC)
+    JOINING --> TRANSMITTING : EV_JOINED
     JOINING --> DEEP_SLEEP   : EV_JOIN_FAILED\n(schlafen, später nochmal)
 
     TRANSMITTING --> RX_WINDOW : EV_TXSTART\n(Uplink gesendet)
@@ -56,13 +53,18 @@ flowchart TD
     F -->|Ja| C
     F -->|Nein| G[motionAlert = false]
 
-    C --> H{rtcJoined?}
-    G --> H
-    E --> I[rtcJoined = false\nOTAA Join]
-
-    H -->|Ja| J[Session aus RTC laden\nsofort Uplink senden]
-    H -->|Nein| I
+    C --> I[Immer: frischer OTAA Join\nLMIC_reset + Kanäle setzen]
+    G --> I
+    E --> I
 ```
+
+> **Hinweis:** Eine RTC-Session-Persistenz (Frame Counter / Session Keys über
+> Deep Sleep hinweg speichern) wurde **bewusst entfernt** — sie führte dazu,
+> dass der TTN Network Server Uplinks nach dem Restore still verwarf
+> (Frame-Counter-/Kanalzustand passte nicht zu dem, was der Server erwartete).
+> Da der Knoten ein eigenes Gateway in Reichweite hat, ist ein frischer
+> OTAA-Join nach jedem Wakeup (~5s) zuverlässiger als RTC-Restore und nur
+> minimal langsamer.
 
 ---
 
@@ -73,7 +75,7 @@ flowchart TD
     A[EV_TXCOMPLETE] --> B{Downlink\nempfangen?}
 
     B -->|Ja| C[LED Kommando\nausführen]
-    B -->|Nein| D{PIR aktiv?}
+    B -->|Nein| D{PIR-Pin neu lesen:\naktuell HIGH?}
     C --> D
 
     D -->|Nein| E[alarmCount = 0\nWarte 10s]
@@ -89,15 +91,20 @@ flowchart TD
     I --> K[goToSleep]
 ```
 
+> **Fix:** `motionAlert` wurde früher nur einmal beim Boot gesetzt und nie
+> aktualisiert — dadurch blieb der Knoten in der Alarm-Eskalation hängen,
+> selbst wenn die Bewegung längst vorbei war. Jetzt wird der PIR-Pin direkt
+> vor dieser Entscheidung neu eingelesen, sodass "KLAR" zuverlässig zum
+> Schlafen führt.
+
 ---
 
 ## 4. Zustandsbeschreibung
 
 | Zustand | Beschreibung | OLED-Anzeige |
 |---------|-------------|--------------|
-| `BOOT` | setup() aufgerufen, Hardware init | "SmartGarden Guard v0.2" |
-| `CHECK_RTC` | Wakeup-Grund prüfen, RTC-Daten laden | — |
-| `JOINING` | OTAA Join-Request, warte auf Accept | "Join TTN..." |
+| `BOOT` | setup() aufgerufen, Hardware init, Wakeup-Grund prüfen | "SmartGarden Guard v0.2" |
+| `JOINING` | OTAA Join-Request, warte auf Accept (immer, jeder Zyklus) | "Join TTN..." |
 | `TRANSMITTING` | Uplink wird gesendet | "Sende Uplink..." |
 | `RX_WINDOW` | RX1/RX2 Fenster offen (5-6s nach TX) | — |
 | `CMD_EXEC` | LED-Kommando ausführen | "Downlink! LED: AN/AUS" |
@@ -110,18 +117,14 @@ flowchart TD
 
 ## 5. RTC-Speicher (überlebt Deep Sleep)
 
+LoRaWAN-Session-Persistenz (Keys, DevAddr, Frame Counter) wurde **entfernt** —
+siehe Hinweis in Abschnitt 2. Übrig bleiben nur die Werte, die unabhängig
+vom Funk-Stack über den Sleep hinweg erhalten bleiben sollen:
+
 | Variable | Typ | Inhalt |
 |----------|-----|--------|
-| `rtcJoined` | bool | Session gültig? |
-| `rtcNwkSKey` | uint8_t[16] | Network Session Key |
-| `rtcAppSKey` | uint8_t[16] | Application Session Key |
-| `rtcDevAddr` | uint32_t | Temporäre TTN-Adresse |
-| `rtcSeqnoUp` | uint32_t | Uplink Frame Counter |
-| `rtcSeqnoDn` | uint32_t | Downlink Frame Counter |
 | `rtcLedState` | bool | LED an/aus |
 | `rtcAlarmCount` | uint8_t | Anzahl Alarm-Uplinks (max. 5) |
-
-> **Wichtig:** `rtcSeqnoUp` und `rtcSeqnoDn` müssen gespeichert werden — TTN verwirft Pakete mit zu niedrigem Counter als Replay-Angriff.
 
 ---
 
@@ -131,11 +134,17 @@ flowchart TD
 |---------|-------|-------|----------------|
 | Deep Sleep | ~0.15 mA | ~15 min | ~0.56 mAh |
 | Boot + LMIC init | ~80 mA | ~0.5s | ~0.01 mAh |
+| **OTAA Join (Request + Accept-RX)** | ~100 mA | ~5-8s | **~0.15 mAh** |
 | TX Uplink | ~120 mA | ~0.2s | ~0.007 mAh |
 | RX Fenster | ~12 mA | ~1s | ~0.003 mAh |
-| **Gesamt pro Zyklus** | | | **~0.58 mAh** |
-| **Tagesverbrauch** | | 96 Zyklen | **~55 mAh/Tag** |
-| **2× 18650 (5000 mAh)** | | | **~90 Tage** |
+| **Gesamt pro Zyklus** | | | **~0.73 mAh** |
+| **Tagesverbrauch** | | 96 Zyklen | **~70 mAh/Tag** |
+| **2× 18650 (5000 mAh)** | | | **~70 Tage** |
+
+> Gegenüber RTC-Session-Restore kostet der Join pro Zyklus zusätzliche
+> Energie (~0.15 mAh) — bei einem Knoten mit eigenem Gateway in Reichweite
+> ist dieser Mehrverbrauch der Preis für deutlich höhere Zuverlässigkeit
+> (siehe Abschnitt 2) und in der Praxis vernachlässigbar.
 
 > Bei PIR-Alarm: bis zu 5 Uplinks × 30s = max. 2.5 Minuten aktiv → ca. 5 mAh pro Alarm-Ereignis.
 
@@ -166,8 +175,9 @@ flowchart TD
 
 | Problem | Ursache | Status |
 |---------|---------|--------|
-| Join dauert 1-5 Min | EU868 Duty Cycle + Gateway-Timing | ✅ durch RTC-Session gelöst (nach erstem Join) |
+| Join dauert 1-5 Min | EU868 Duty Cycle + Gateway-Timing | ✅ durch eigenes Gateway in Reichweite kein Problem (Join < 10s) |
+| RTC-Session-Restore verwirft Uplinks | Frame-Counter-/Kanalzustand nach Restore inkonsistent mit Network Server | ✅ entfernt — stattdessen frischer OTAA-Join nach jedem Wakeup |
 | PIR HIGH → kein Wakeup | EXT0 nur bei steigender Flanke | ✅ gefixt: warten bis PIR=LOW vor Sleep |
-| Endless Alarm-Loop | PIR dauerhaft aktiv | ✅ gefixt: max. 5 Alarm-Uplinks |
+| Endless Alarm-Loop | `motionAlert` wurde nur beim Boot gesetzt, nie aktualisiert | ✅ gefixt: PIR-Pin wird vor jeder Eskalations-Entscheidung neu gelesen; zusätzlich max. 5 Alarm-Uplinks als Notbremse |
 | SF10 nach ADR | ADR passt Rate an | ✅ ADR deaktiviert (festes SF9) |
 | Downlink sporadisch | Gateway Duty Cycle / Timing | ⚠️ LoRaWAN by design (best-effort) |
