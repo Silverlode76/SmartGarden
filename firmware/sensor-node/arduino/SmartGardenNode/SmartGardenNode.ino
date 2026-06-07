@@ -314,6 +314,7 @@ void setup() {
     // LMIC init
     os_init();
     LMIC_reset();
+    LMIC_setClockError(MAX_CLOCK_ERROR * 20 / 100);  // RX-Fenster 20% breiter
 
     // EU868 Kanäle immer setzen (gilt für OTAA und RTC-Session)
     LMIC_setupChannel(0, 868100000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
