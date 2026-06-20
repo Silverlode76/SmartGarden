@@ -287,6 +287,16 @@ KEIN PUSH ────────────────┼──────�
 > kein Fernzugriff, keine Sensorik, kein Alarm. Genau dort setzt SmartGarden an:
 > **Off-Grid Smart Irrigation** — die intelligente Weiterentwicklung des AquaBloom-Konzepts.
 
+> **Offene Designfrage (für v2):** AquaBloom und ähnliche Solar-Bewässerungssets (siehe
+> Produktfotos im Handel) bauen die Pumpe **trocken ins Gehäuse** ein und saugen das
+> Wasser per Schlauch aus der Tonne, statt eine Tauchpumpe direkt ins Wasser zu legen.
+> SmartGarden Prototyp v0.2 nutzt aktuell eine **Tauchpumpe** (einfacher, kein
+> Ansaug-/Rückschlagventil-Problem, aber Pumpenkopf dauerhaft im Wasser → Verschleiß/
+> Verschmutzung). Trade-off für eine spätere Iteration evaluieren:
+> Tauchpumpe (aktuell) vs. selbstansaugende Pumpe im trockenen Gehäuse (Marktstandard
+> bei AquaBloom & Co.) — siehe [hardware-overview.md](../architecture/hardware-overview.md)
+> Bring-up-Bericht für den aktuellen Hardware-Stand.
+
 ---
 
 ### Gardena Smart System
