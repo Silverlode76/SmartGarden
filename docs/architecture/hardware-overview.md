@@ -276,6 +276,11 @@ Sicherheitspuffer für lange Schlechtwetterperioden im Winter.
 
 Aktuelle Verdrahtung des laufenden Prototyps (Stand: Juni 2026):
 
+> **Board-Variante:** Verwendetes Modul ist konkret ein **LILYGO T3_V1.6.1** (WiFi+Bluetooth LoRa Board,
+> SX1276 868/915MHz). Vollständiges Pinout-Diagramm: [`hardware/schematics/lilygo-t3/lilygo-t3-v1.6.1-pinout.png`](../../hardware/schematics/lilygo-t3/lilygo-t3-v1.6.1-pinout.png).
+> Pin-Belegung deckt sich mit den in diesem Dokument verwendeten GPIOs (12, 13, 14, 21, 22, 34, 35);
+> LoRa-SPI intern: MOSI=27, SCLK=5, CS=18, MISO=19, RST=23, DIO0=26.
+
 ### Angeschlossene Komponenten
 
 ```
