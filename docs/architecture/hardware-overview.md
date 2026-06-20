@@ -350,6 +350,35 @@ Kein Konflikt — I2C ist ein Bus, mehrere Geräte parallel möglich.
 
 ---
 
+## Pumpen-Bring-up — Erkenntnisse (Juni 2026)
+
+Erster Hardware-Bring-up des Pumpenkreises (LILYGO T3_V1.6.1 + IRLZ44N + Boost-Converter
++ QWORK 12V Tauchpumpe, 840 L/h, 3 Adern braun/blau/gelb).
+
+### Ergebnis
+
+| Komponente | Status | Erkenntnis |
+|---|---|---|
+| **Pumpe** | ✅ I.O. | Läuft an echten 12V (Labornetzteil) einwandfrei; Durchfluss bei 0,5m Förderhöhe gemessen: **~216 L/h** (4× 5s-Schübe = 1,2L) |
+| **MOSFET-Schaltung** (IRLZ44N, 500Ω Gate-R, 10kΩ Pulldown, 1N4007 Freilauf) | ✅ I.O. | Schaltet zuverlässig über GPIO12 (LilyGo), auch bei 3,3V Gate-Pegel volle Durchsteuerung |
+| **Firmware** (GPIO12 Toggle, `firmware/irrigator-node/`) | ✅ I.O. | Pumpe schaltet synchron zum Sketch |
+| **Boost-Converter (XL6009-Modul #1)** | ❌ defekt | Vout = Vin unabhängig vom Trimmer, auch mit Last (LED) — Regler schaltet nicht |
+| **Boost-Converter (XL6009-Modul #2)** | ⚠️ unterdimensioniert | Liefert 12V im Leerlauf, bricht aber unter Pumpenlast auf ~4V ein (Strombegrenzung erreicht, hörbares Spulenpfeifen) |
+| **12V-Labornetzteil (Referenz)** | ✅ I.O. | Bricht unter Last nur auf ~11V ein (normaler Innenwiderstand) — bestätigt: Pumpe selbst ist nicht das Problem |
+
+### Offener Punkt
+Das aktuelle Boost-Modul muss **ersetzt werden** durch ein für höheren Dauerstrom
+ausgelegtes Modul (z.B. **XL6019, 5A** — bereits in [ADR-003](ADR-003-Pumpenauswahl.md)
+als Upgrade-Pfad genannt — oder ein explizit für "3A @ 12V" beworbenes Modul).
+Erst danach ist der Akkubetrieb (statt Labornetzteil) sinnvoll testbar.
+
+### Noch nicht gemessen
+Durchfluss bei 1,0m und 1,5m Förderhöhe (Betriebspunkt laut ADR-003) — fehlender
+passender Schlauch am Messtag. Förderhöhe/Durchfluss wird vorläufig als **I.O.**
+eingestuft (216 L/h bei 0,5m ist weit über dem Drip-Bedarf von 10-50 L/h).
+
+---
+
 ## Nächste Schritte
 
 ### ✅ Entschieden
