@@ -178,6 +178,13 @@ Das SmartGarden-System besteht aus zwei Node-Typen die kombiniert werden:
 | Verteiler | 1-auf-8 Drip-Verteiler | ~2€ | **PRIMÄR** | Verzweigung zu bis zu 8 Pflanzen (erweiterbar) |
 | Ventil | 12V Magnetventil | ~12€ | Optional | Nur für Parzellen mit Vereins-Wasseranschluss; benötigt dann XL6009 zurück |
 
+> **Tatsächlich verbaute Pumpe (Prototyp v0.2, Stand Juni 2026):** Abweichend von der
+> ADR-004-Planung (3,7–5V Drip-Pumpe ohne Boost) wird aktuell eine
+> **QWORK 12V Tauchwasserpumpe, 840 L/h, 5m max. Förderhöhe** verbaut (3 Adern:
+> braun = +, blau = −, gelb = Gehäuseerdung, nicht angeschlossen). Damit ist
+> **wieder ein Boost-Converter (3,7V→12V) nötig** — siehe ADR-003 und den
+> Bring-up-Bericht oben. Gemessener Durchfluss bei 0,5m Förderhöhe: ~216 L/h.
+
 > ⚠️ **Förderhöhe bleibt kritisch.** Auch bei Drip-Systemen muss die Pumpe Wasser über den
 > Tonnenrand heben (~1–1,5m). Min. 3m Stillstandsförderhöhe erforderlich.
 > **Vorteil Drip:** Bei 10–50 L/h Durchfluss wird die Kennlinie sehr flach — selbst kleine
