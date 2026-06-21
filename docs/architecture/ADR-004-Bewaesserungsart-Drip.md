@@ -195,6 +195,57 @@ die weitere Bewertung/Dimensionierung ein.
 
 ---
 
+## Revision (Juni 2026): PoC wird doch mit kleiner Membranpumpe aufgebaut
+
+Nach der finalen Entscheidung oben wurde zusätzlich eine **YWBL-WH Mini-Membranpumpe**
+getestet — mit Erfolg: Sie ist **selbstansaugend und läuft direkt am Akku (3-3,7V),
+ganz ohne Boost-Converter.**
+
+### Datenblatt YWBL-WH
+
+| Parameter | Wert |
+|---|---|
+| Pumpentyp | Membran |
+| Spannung | laut Listing "1 Volt" (vermutlich Übersetzungs-/Listingfehler — Praxistest zeigt Betrieb bei 3-3,7V) |
+| Leistung | 3W |
+| Max. Durchflussmenge | **1,2 L/min = 72 L/h** |
+| Max. Hubhöhe | **1,5 m** |
+| Gewicht | 59,5 g |
+
+### Entscheidung
+Auf Wunsch wird der PoC jetzt mit dieser Pumpe statt der 12V-Tauchpumpe aufgebaut.
+Damit kehrt SmartGarden faktisch zur ursprünglichen ADR-004-Idee zurück
+(boost-lose Drip-Pumpe direkt am Akku), nur mit konkretem, verifiziertem Produkt.
+
+### ⚠️ Zu prüfender Vorbehalt — Förderhöhen-Marge
+**Max. Hubhöhe 1,5m entspricht exakt dem oberen Ende des in ADR-003 ermittelten
+Betriebspunkts (1,3-1,5m Gesamtgegendruck Tonne→Beet).** Genau das war die in
+ADR-003 dokumentierte Lektion aus dem allerersten Fehlkauf: **am Stillstandspunkt
+(max. Förderhöhe) ist der Durchfluss praktisch null** — die 72 L/h gelten nur bei
+0m Gegendruck, nicht bei 1,3-1,5m. Vor dem endgültigen Einbau unbedingt den
+**tatsächlichen Durchfluss bei der realen Betriebshöhe (1,3-1,5m) messen**
+(gleiche Methode wie beim 12V-Pumpentest: Messbecher + Stoppuhr) — nicht nur
+den freien Durchfluss. Falls der Durchfluss bei dieser Höhe zu stark einbricht,
+bleibt die 12V-Tauchpumpe (siehe finale Entscheidung oben) die Rückfalloption.
+
+### Vorteil gegenüber der 12V-Lösung (falls Förderhöhen-Test besteht)
+- Kein Boost-Converter nötig → eine Fehlerquelle/Kostenposition weniger
+- Geringerer Energieverbrauch (3W vs. 12V-Pumpe + Boost-Verluste)
+- Selbstansaugend → flexiblere Montage (Pumpe kann trocken neben der Tonne stehen)
+
+### Erster Praxistest (Juni 2026) — Teilbestätigung
+Pumpe fördert Wasser über **50cm Höhenunterschied durch einen 1,5m Schlauch
+ohne Probleme** (qualitative Beobachtung, noch kein gemessener L/h-Wert bei
+dieser Höhe). **Kein Boost-Converter nötig** — Pumpe läuft direkt am Akku.
+
+**Aber:** 50cm ist noch nicht der volle Betriebspunkt (1,3-1,5m laut ADR-003).
+Der Vorbehalt oben ist damit teilweise, aber nicht vollständig ausgeräumt —
+offen bleibt der Test bei **voller Betriebshöhe (1,3-1,5m)** mit Durchfluss-
+Messung (Messbecher + Stoppuhr), bevor die Pumpe endgültig den Boost-Ansatz
+ersetzt.
+
+---
+
 ## Referenzen
 
 - `ADR-003-Pumpenauswahl.md` — Förderhöhe als kritisches Kriterium (aktualisiert)
