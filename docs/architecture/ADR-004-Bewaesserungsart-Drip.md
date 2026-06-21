@@ -163,6 +163,38 @@ benötigter Betriebsdruck/Durchfluss) ist noch nicht final dimensioniert — sie
 
 ---
 
+## Finale Entscheidung (Juni 2026): 12V-Tauchpumpe + Boost-Converter bleibt
+
+Nach Abwägung aller Optionen (3,7-5V Drip-Pumpe ohne Boost, 12V Membranpumpe
+selbstansaugend, 5V Peristaltikpumpe) bleibt SmartGarden bei der **12V-Tauchpumpe
++ Boost-Converter**, begründet durch:
+
+- **Anwendungsfall ist größer als Balkonkasten** (2×2m Hochbeet, Tomaten) — kleine
+  1-3W-Pumpen (Gardena-Klasse, 10 L/h) würden bei vollflächiger Tropfschlauch-
+  Bewässerung an ihre Grenzen kommen bzw. unpraktikabel lange Laufzeiten benötigen
+- **Reserve für Erweiterung** (größeres Beet, zweites Beet) ohne Pumpenwechsel
+- **Bereits verifizierte, funktionierende Schaltung** (siehe Bring-up-Bericht in
+  [hardware-overview.md](hardware-overview.md))
+- Selbstansaugende Alternativen (Membran-/Peristaltikpumpe) lösen kein echtes
+  Problem, da die Tauchpumpe ohnehin nicht ansaugen muss (sitzt im Wasser)
+
+### Akzeptierter Kostenfaktor
+Der Boost-Converter (3,7V→12V) bleibt als zusätzliche BOM-Position bestehen
+(~3-5€ für ein ausreichend dimensioniertes Modul, z.B. XL6019 5A) — das ist der
+bewusst in Kauf genommene Mehrpreis gegenüber der ursprünglich in ADR-004 geplanten
+boost-losen Lösung. Sollte in der BOM (`hardware/bom/sensor-node-bom.csv` bzw.
+[hardware-overview.md](hardware-overview.md) Komponententabelle) entsprechend ergänzt
+werden, inkl. des in einem früheren Gespräch identifizierten fehlenden **Inline-
+Filters** vor dem Drip-Verteiler (Scheiben-/Siebfilter, ~3-5€) gegen Verstopfung
+durch Regentonnenwasser.
+
+### Nächster Schritt
+PoC mit 12V-Tauchpumpe + neuem, ausreichend dimensioniertem Boost-Modul aufbauen
+und **im Feld testen** (statt nur am Labornetzteil). Felderkenntnisse fließen in
+die weitere Bewertung/Dimensionierung ein.
+
+---
+
 ## Referenzen
 
 - `ADR-003-Pumpenauswahl.md` — Förderhöhe als kritisches Kriterium (aktualisiert)
