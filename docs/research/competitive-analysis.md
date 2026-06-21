@@ -425,3 +425,24 @@ KEIN ALARM ──────────────┼────────
 - Zielgruppe: ~15% technikaffin = ~150.000 potenzielle Kunden
 - Durchschnittlicher Warenkorb: ~150€
 - Adressierbarer Markt: ~22 Mio. €
+
+---
+
+## Garden Home — Kritische Annahmen zu validieren
+
+Analog zur Guard-Tabelle oben — für Garden Home bisher nicht erfasst.
+
+### Preisanker zur Einordnung
+| Klasse | Preis | Beispiel |
+|---|---|---|
+| No-Name "dumm" (Timer, kein Branding) | **~20-30€** | Onherm BSV-IC015 (~25€) — geschätzte Bauteilkosten nur wenige Euro |
+| Marke "dumm" (Timer, Markenaufschlag) | ~25-100€ | Gardena AquaBloom (Standard/L) |
+| Marke "smart" (App, Sensorik) | ~250€ | MIYO |
+| **SmartGarden Zielpreis** | **~85-95€** | ~3-4x Aufschlag gegenüber No-Name-Baseline |
+
+| Annahme | Risiko | Test |
+|---------|--------|------|
+| Kunden zahlen Aufpreis für Fernüberwachung der Bewässerung (TTN/WiFi-Daten: Tankstand, Pumpenstatus, Bodenfeuchte) gegenüber einem reinen Timer-System (No-Name ~20-30€, Marke ~25-100€) | **Hoch** — bisher nur Annahme, nicht validiert. MIYO (~250€) beweist Zahlungsbereitschaft für *ein* Smart-Segment, aber Preisdelta zur Konnektivität allein ist unbekannt, und der ~3-4x-Aufschlag gegenüber der No-Name-Baseline (20-30€) ist beträchtlich | Einfache Preis-Anker-Umfrage im eigenen Kleingartenverein: zwei Varianten (Basis-Timer ~25€ vs. Basis+Konnektivität ~85-95€) mit der tatsächlichen Preisdifferenz vorlegen, Kaufbereitschaft abfragen. Alternativ: zwei Landingpage-Varianten mit unterschiedlichem Preis testen (Conversion-Vergleich) |
+| Zahlungsbereitschaft besonders hoch bei **abwesenden** Nutzern (Wochenendhütte, Jagdhütte) vs. Nutzern, die täglich vor Ort sind | Mittel | Befragung nach Nutzungsmuster (Besuchsfrequenz) getrennt auswerten — Hypothese: Fernüberwachung ist für Vielbesucher wenig wert, für Wenigbesucher hoch |
+| 2×2m-Hochbeet/Tomaten-Anwendungsfall ist repräsentativ für die Zielgruppe, nicht Einzelfall | Mittel | Kurzumfrage im Kleingartenverein: Beetgröße, angebaute Pflanzenarten, aktuelle Bewässerungsmethode abfragen |
+| Preisaufschlag durch "Intelligenz" ist hoch und konkret kalkulierbar, nicht nur abstrakt — ESP32-Node (~50€ laut Zielpreis-Tabelle oben) statt einfachem Timer-Chip (~5-10€ bei Onherm/Gardena-Klasse) **plus** ggf. eigener LoRa-Gateway (~100-150€), falls kein TTN-Gateway in Reichweite | **Hoch** — der reale Kostenaufschlag (Hardware + ggf. Gateway) ist um ein Vielfaches höher als bei Guard (dort nur 1 Node, kein zusätzliches Bewässerungs-Equipment). Ungeklärt: deckt die Zahlungsbereitschaft diesen Mehrpreis, oder ist Garden Home nur rentabel, wenn ein TTN-Gateway bereits vorhanden ist (z.B. weil der Kunde schon einen Guard-Node hat)? | Klar zwischen zwei Szenarien trennen: (1) Kunde hat schon TTN-Coverage/eigenes Gateway (z.B. durch Guard) → niedrigerer Mehrpreis nötig, (2) Kunde braucht Gateway komplett neu → Preisaufschlag muss Gateway-Kosten mit einkalkulieren. Bundle-Pricing (Guard+Garden Home zusammen, gemeinsames Gateway) als Test-Variante in der Umfrage mit aufnehmen |
