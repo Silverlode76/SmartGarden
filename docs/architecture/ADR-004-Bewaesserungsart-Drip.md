@@ -122,6 +122,47 @@ Feuchtigkeitssensor (Capacitive Soil Sensor) steuert Zyklusende:
 
 ---
 
+## Update (Juni 2026) — Anwendungsfall präzisiert: Hochbeet statt Einzelpflanzen
+
+Beim Hardware-Bring-up wurde klar, dass der konkrete Zielanwendungsfall ein
+**Hochbeet von ca. 2×2m (4m²)** ist — nicht einzelne Topf-/Balkonpflanzen wie bei
+Gardena AquaBloom. Das ist relevant, weil AquaBloom genau dafür in der
+[Wettbewerbsanalyse](../research/competitive-analysis.md) als ungeeignet bewertet wird:
+*"Ausgelegt für Balkon-/Topfpflanzen, nicht für Gartenbeet / größere Flächen."*
+
+### Konsequenz für die Drip-Auslegung
+
+Das ursprüngliche Bild (oben, "1-auf-8-Verteiler zu 8 Einzel-Emittern") passt zum
+Balkonkasten-Maßstab, nicht zur Flächenbewässerung. Für ein Hochbeet ist stattdessen
+ein **Tropfschlauch-Gitter** sinnvoller:
+
+```
+[Pumpe] → [Verteiler] → mehrere parallele Tropfschlauch-Linien quer über das Beet
+                          (z.B. alle 30cm eine Reihe, integrierte Tropfpunkte alle 30cm)
+```
+
+**Auswirkung auf den Durchflussbedarf:** Mehr Tropfpunkte über die Fläche bedeuten
+einen deutlich höheren Gesamtdurchfluss als die ursprünglich angenommenen 8 Einzel-
+Emitter (4-8 L/h gesamt). Bei z.B. 7×7 Tropfpunkten (30cm-Raster auf 2×2m) mit je
+1-2 L/h sind das schon **50-100+ L/h Gesamtbedarf**.
+
+### Auswirkung auf die Pumpenwahl
+
+Dies bestätigt, warum die in der Praxis getesteten kleinen Membran- (90-120 L/h) und
+Peristaltikpumpen (3-6 L/h) für die **vollflächige** Hochbeet-Bewässerung eher knapp
+bis ungeeignet sind, während die aktuell verbaute **12V-Tauchpumpe (216 L/h gemessen
+bei 0,5m, siehe [hardware-overview.md](hardware-overview.md) Bring-up-Bericht)**
+reichlich Reserve für ein Tropfschlauch-Gitter dieser Größenordnung bietet — ein
+weiteres Argument, an der 12V-Tauchpumpe (statt einer kleineren 3,7-5V-Lösung)
+festzuhalten.
+
+### Offener Punkt
+Konkretes Tropfschlauch-Layout für 2×2m (Rasterabstand, Gesamt-Tropfpunktzahl,
+benötigter Betriebsdruck/Durchfluss) ist noch nicht final dimensioniert — siehe
+"Offene Punkte für Prototyp v0.2" oben.
+
+---
+
 ## Referenzen
 
 - `ADR-003-Pumpenauswahl.md` — Förderhöhe als kritisches Kriterium (aktualisiert)
