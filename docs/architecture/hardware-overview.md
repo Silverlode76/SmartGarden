@@ -384,6 +384,28 @@ Durchfluss bei 1,0m und 1,5m Förderhöhe (Betriebspunkt laut ADR-003) — fehle
 passender Schlauch am Messtag. Förderhöhe/Durchfluss wird vorläufig als **I.O.**
 eingestuft (216 L/h bei 0,5m ist weit über dem Drip-Bedarf von 10-50 L/h).
 
+### Test: selbstansaugende Mini-Pumpe als Alternative zur Tauchpumpe
+Im Zuge der in der [Wettbewerbsanalyse](../research/competitive-analysis.md) notierten
+offenen Designfrage (Tauchpumpe vs. trocken verbaute Pumpe mit Ansaugschlauch, wie bei
+AquaBloom/Onherm) wurde eine vorhandene **"Mini Wasserpumpe 3V" (Aquarium/Refugium)**
+trocken aufgestellt und versucht, Wasser über einen Schlauch anzusaugen.
+
+**Ergebnis: ❌ Pumpe kann nicht ansaugen.**
+
+**Erklärung:** Diese günstigen DC-Mini-Pumpen sind **Kreiselpumpen (Zentrifugalpumpen)**
+mit offenem Flügelrad — sie benötigen bereits Wasser im Pumpengehäuse, um einen
+Förderdruck aufzubauen. Luft im Schlauch/Gehäuse verhindert das Ansaugen komplett
+(kein Selbstansaug-Effekt). Die kommerziellen Trocken-Gehäuse-Systeme (AquaBloom, Onherm)
+setzen vermutlich auf **Membran- oder Peristaltikpumpen**, die im Gegensatz zu
+Kreiselpumpen selbstansaugend sind — das ist aufwändiger/teurer als eine einfache
+Tauchpumpe.
+
+**Vorläufiges Fazit:** Für SmartGarden v0.2 bleibt die **12V-Tauchpumpe die pragmatischste
+Lösung** — sie braucht keine Selbstansaugfähigkeit, da sie direkt im Wasser sitzt.
+Der Wechsel zu einer trockenen Pumpe wäre nur mit einer dedizierten Membran-/
+Peristaltikpumpe sinnvoll, nicht mit einer einfachen Kreiselpumpe — das ist ein
+größerer Hardware-Schritt und bleibt vorerst zurückgestellt.
+
 ---
 
 ## Nächste Schritte

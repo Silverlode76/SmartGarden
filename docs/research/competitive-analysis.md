@@ -299,6 +299,42 @@ KEIN PUSH ────────────────┼──────�
 
 ---
 
+### Onherm Solar Bewässerungssystem (Amazon, Generic-Hersteller)
+
+**Modell:** BSV-IC015, 15m Tropfschlauch — Beispiel für die "dumme" Einstiegsklasse
+ohne jede Sensorik/Konnektivität.
+
+| Parameter | Wert |
+|---|---|
+| Preis | ~25€ (UVP 29,99€, Angebot -17%) |
+| Akku | 2200mAh, Solar-Nachladung |
+| Steuerung | Nur Timer, keine App, kein Bodenfeuchtesensor |
+| Verkaufszahlen | 200+ /Monat (Amazon-Anzeige) |
+
+**Stärken:**
+- ✅ Sehr günstig, Plug & Play
+- ✅ Wasserentnahme direkt aus Eimer/Tonne ohne Wasserhahn
+
+**Schwächen:**
+- ❌ Keine App, kein Fernzugriff, keine Sensorik — reiner Zeitschalt-Timer
+- ❌ Keine Bodenfeuchte-Anpassung, kein Alarm
+
+> **Fazit:** Bestätigt die Preisvalidierung — selbst ganz ohne Smart-Funktionen
+> verkauft sich Off-Grid-Bewässerung bei ~25€ gut. Untermauert, dass SmartGardens
+> Zielpreis (~85-95€) für deutlich mehr Funktionsumfang (App, Sensorik, LoRaWAN,
+> Alarm) marktfähig ist.
+
+> **Architektur-Bestätigung:** Auch dieses System (wie AquaBloom) nutzt **keine
+> Tauchpumpe** — die Pumpe sitzt trocken im Gehäuse und saugt Wasser per Schlauch
+> aus dem Behälter an (IN/OUT-Anschluss, siehe Produktbild). Zusätzlich ist ein
+> **Anti-Siphon-Ventil** zwischen Pumpenausgang und Pflanze verbaut, das Rückfluss
+> von Wasser bei ausgeschalteter Pumpe verhindert (Höhenunterschied Tonne↔Beet).
+> Damit bestätigen **mehrere** Marktprodukte unabhängig voneinander den
+> Trocken-Pumpen-Ansatz als Standard — verstärkt die offene Designfrage oben:
+> SmartGardens Tauchpumpen-Wahl ist die Ausnahme, nicht die Regel am Markt.
+
+---
+
 ### Gardena Smart System
 - Benötigt WLAN + Steckdose → nicht für Schrebergarten geeignet
 - Kein LoRa, keine Solar-Option
