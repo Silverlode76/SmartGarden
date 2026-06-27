@@ -83,7 +83,7 @@ Das SmartGarden-System besteht aus zwei Node-Typen die kombiniert werden:
             │          │                SCL → GPIO22
             │          │
             │          ├── Capacitive    AOUT → GPIO34 (ADC)
-            │          │   Soil Sensor   VCC → 3,3V  (via GPIO33 schaltbar*)
+            │          │   Soil Sensor   VCC → 3,3V  (via GPIO33 schaltbar*, auf LILYGO T3_V1.6.1: GPIO4 — siehe Hinweis unten)
             │          │
             │          ├── AM312 PIR     OUT  → GPIO13
             │          │                VCC → 3,3V
@@ -107,6 +107,12 @@ Das SmartGarden-System besteht aus zwei Node-Typen die kombiniert werden:
 
 > *Der Bodenfeuchte-Sensor wird nur während der Messung mit Strom versorgt (GPIO33 HIGH),
 > um elektrolytische Korrosion der Elektroden zu minimieren.
+>
+> **Board-Hinweis (Juni 2026):** Auf dem tatsächlich verbauten **LILYGO T3_V1.6.1**
+> (siehe [Pinout](../../hardware/schematics/lilygo-t3/lilygo-t3-v1.6.1-pinout.png))
+> ist **GPIO33 nicht herausgeführt**. Für den Irrigator-Knoten wird stattdessen
+> **GPIO4** für die schaltbare Sensor-Stromversorgung verwendet (siehe
+> `firmware/irrigator-node/`).
 
 ### 4. Pin-Belegung TTGO LoRa32 (Zusammenfassung)
 

@@ -5,7 +5,7 @@ hardware/schematics/sensor-node/.history/
 firmware/**/.pio/
 
 # TTN Credentials — NIEMALS ins Git!
-firmware/**/src/secrets.h
+firmware/**/secrets.h
 app/**/lib/secrets.dart
 
 # macOS

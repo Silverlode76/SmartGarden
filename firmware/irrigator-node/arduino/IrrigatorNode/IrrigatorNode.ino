@@ -1,5 +1,5 @@
 // ============================================================
-// SmartGarden Irrigator — PoC v0.2 mit LoRaWAN
+// SmartGarden Irrigator — PoC v0.2 mit LoRaWAN (Arduino IDE)
 // Hardware : LILYGO T3_V1.6.1 (ESP32 + SX1276)
 //            IRLZ44N Low-Side-Switch an GPIO12 (500Ω Gate-R, 10kΩ Pulldown)
 //            YWBL-WH Mini-Membranpumpe (3-3,7V, direkt am Akku, kein Boost)
@@ -12,9 +12,17 @@
 //
 // Kalibrierung (Juni 2026, eigener Sensor/Topf):
 //   trocken (Luft) ≈ 1671   |   nass (Wasser) ≈ 667
+//
+// WICHTIG vor dem Compilieren:
+//   1. "MCCI LoRaWAN LMIC library" über Werkzeuge → Bibliotheken verwalten installieren
+//   2. lmic_project_config.h (liegt eine Ebene höher in firmware/irrigator-node/)
+//      kopieren nach:
+//      ~/Documents/Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config/lmic_project_config.h
+//      (ohne diese Datei: Compile-Fehler wegen fehlender Symbole wie DR_SF12)
+//   3. secrets.example.h (im gleichen Ordner wie dieses Sketch) kopieren als
+//      "secrets.h" und mit den eigenen TTN-Keys befüllen
 // ============================================================
 
-#include <Arduino.h>
 #include <lmic.h>
 #include <hal/hal.h>
 #include <SPI.h>

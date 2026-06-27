@@ -10,6 +10,10 @@ const String ttnAppId       = 'smartgardenollie';
 const String ttnDeviceId    = 'ollie-smartgarden-device';
 const String ttnMqttHost    = 'eu1.cloud.thethings.network';
 
+// Irrigator-Node (Bewässerung)
+const String ttnIrrigatorAppId    = 'smartgarden-irrigator';
+const String ttnIrrigatorDeviceId = 'smartgarden-irrigator';
+
 void main() {
   runApp(const SmartGardenApp());
 }
@@ -42,14 +46,69 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
   bool   _motionAlert = false;
   bool   _connected   = false;
   String _lastUpdate  = '—';
+
+  bool   _pumpOn              = false;
+  int    _soilRaw             = 0;
+  bool   _irrigatorConnected  = false;
+  String _irrigatorLastUpdate = '—';
+
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _fetchStatus();
+    _fetchIrrigatorStatus();
     // alle 10s aktualisieren
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) => _fetchStatus());
+    _timer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _fetchStatus();
+      _fetchIrrigatorStatus();
+    });
+  }
+
+  // Extrahiert den neuesten Eintrag aus einer TTN-Webhook-Firebase-Struktur
+  // (mehrere Push-Key-Einträge ODER ein einzelnes Objekt)
+  Map<String, dynamic>? _latestEntry(dynamic data) {
+    if (data == null) return null;
+    if (data is Map && data.values.first is Map) {
+      return (data as Map).values.cast<Map>().reduce((a, b) {
+        final ta = (a['received_at'] ?? '') as String;
+        final tb = (b['received_at'] ?? '') as String;
+        return ta.compareTo(tb) >= 0 ? a : b;
+      }) as Map<String, dynamic>;
+    }
+    return data as Map<String, dynamic>;
+  }
+
+  Future<void> _fetchIrrigatorStatus() async {
+    final url = Uri.parse(
+      '$firebaseDbUrl/devices/$ttnIrrigatorDeviceId/latest.json'
+    );
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final latest = _latestEntry(jsonDecode(response.body));
+        if (latest == null) return;
+
+        final frmPayload = latest['uplink_message']?['frm_payload'] as String?;
+        if (frmPayload == null) return;
+
+        final bytes = base64Decode(frmPayload);
+        final pump  = bytes.isNotEmpty ? bytes[0] == 0x01 : false;
+        final soil  = bytes.length > 2 ? (bytes[1] << 8) | bytes[2] : 0;
+        final time  = latest['received_at'] as String? ?? '—';
+
+        setState(() {
+          _pumpOn              = pump;
+          _soilRaw             = soil;
+          _irrigatorConnected  = true;
+          _irrigatorLastUpdate = time.length > 18 ? time.substring(11, 19) : time;
+        });
+      }
+    } catch (e) {
+      debugPrint('Irrigator Fetch-Fehler: $e');
+      setState(() => _irrigatorConnected = false);
+    }
   }
 
   Future<void> _fetchStatus() async {
@@ -216,10 +275,72 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
                 )),
               ],
             ),
+
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 16),
+
+            Row(
+              children: [
+                const Text('Bewässerung',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                Icon(
+                  _irrigatorConnected ? Icons.wifi : Icons.wifi_off,
+                  size: 18,
+                  color: _irrigatorConnected ? Colors.green : Colors.red[200],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(child: _StatusCard(
+                  icon: Icons.water_drop,
+                  label: 'Pumpe',
+                  value: _pumpOn ? 'AN' : 'AUS',
+                  color: _pumpOn ? Colors.blue : Colors.grey,
+                )),
+                const SizedBox(width: 16),
+                Expanded(child: _StatusCard(
+                  icon: Icons.grass,
+                  label: 'Bodenfeuchte',
+                  value: _soilMoisturePercent(),
+                  color: _soilMoistureColor(),
+                )),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+            Text(
+              'Letztes Update: $_irrigatorLastUpdate',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  // Kalibrierung: trocken ≈ 1671, nass ≈ 667 (siehe firmware/irrigator-node)
+  static const int _soilDryRaw = 1671;
+  static const int _soilWetRaw = 667;
+
+  String _soilMoisturePercent() {
+    final pct = ((_soilDryRaw - _soilRaw) / (_soilDryRaw - _soilWetRaw) * 100)
+        .clamp(0, 100)
+        .round();
+    return '$pct%';
+  }
+
+  Color _soilMoistureColor() {
+    final pct = ((_soilDryRaw - _soilRaw) / (_soilDryRaw - _soilWetRaw) * 100)
+        .clamp(0, 100);
+    if (pct < 25) return Colors.red;
+    if (pct < 50) return Colors.orange;
+    return Colors.green;
   }
 }
 
