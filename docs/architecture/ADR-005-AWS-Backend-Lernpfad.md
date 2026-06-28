@@ -113,10 +113,14 @@ sequenceDiagram
 
 ### Was macht jede Lambda-Funktion konkret?
 
+Quellcode liegt im Repo unter [`backend/aws-lambda/`](../../backend/aws-lambda/)
+(Referenz/Backup — Deployment läuft aktuell manuell über die AWS Console, siehe
+dortige README).
+
 | Funktion | Trigger | Aufgabe |
 |---|---|---|
-| `smartgarden-write` | `POST /uplink` (von TTN-Webhook) | Empfängt das TTN-Uplink-JSON, extrahiert `device_id` und `frm_payload` (Base64-kodierte Sensordaten), schreibt sie als einen Datensatz in DynamoDB (`PutItem`, überschreibt den vorherigen Stand für dieses Gerät) |
-| `smartgarden-read` | `GET /status?device_id=...` (von der Flutter-App) | Liest den aktuellen Datensatz für die angegebene `device_id` aus DynamoDB (`GetItem`) und gibt ihn als JSON zurück |
+| [`smartgarden-write/index.mjs`](../../backend/aws-lambda/smartgarden-write/index.mjs) | `POST /uplink` (von TTN-Webhook) | Empfängt das TTN-Uplink-JSON, extrahiert `device_id` und `frm_payload` (Base64-kodierte Sensordaten), schreibt sie als einen Datensatz in DynamoDB (`PutItem`, überschreibt den vorherigen Stand für dieses Gerät) |
+| [`smartgarden-read/index.mjs`](../../backend/aws-lambda/smartgarden-read/index.mjs) | `GET /status?device_id=...` (von der Flutter-App) | Liest den aktuellen Datensatz für die angegebene `device_id` aus DynamoDB (`GetItem`) und gibt ihn als JSON zurück |
 
 ### Warum zwei getrennte Lambda-Funktionen (Write/Read) statt einer?
 
