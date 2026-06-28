@@ -414,6 +414,64 @@ größerer Hardware-Schritt und bleibt vorerst zurückgestellt.
 
 ---
 
+## Solar-Ladeschaltung — Komponenten (Juni 2026)
+
+Für den autarken Akkubetrieb wird ein **fertiges Solar-Lademodul** statt einer
+Eigenbau-Ladeschaltung (CN3791 MPPT, siehe Block A in
+[sensor-node-aufbauanleitung.md](../../hardware/assembly/sensor-node-aufbauanleitung.md))
+eingesetzt.
+
+### Solarpanel
+
+| Parameter | Wert |
+|---|---|
+| Hersteller/Modell | LiebeWH Mini-Solarpanel |
+| Spannung | 5V |
+| Leistung | 4,5W |
+| Strom | 900mA |
+| Kabellänge | 78,7 Zoll (~2m) |
+
+### Lademodul
+
+| Parameter | Wert |
+|---|---|
+| Modell | "Solar Charger V1.0" (generisches Modul, Aufdruck "TB:10TMCU") |
+| IC | CN3065 (Lithium-Lademanagement) |
+| Solar-Eingangsspannung | 4,4–6V DC — **passt zum 5V-Panel** |
+| USB-Eingang | Micro-USB (alternative Ladequelle ohne Sonne) |
+| Ladeschlussspannung | 4,2V |
+| Max. Ladestrom | 500mA (Panel liefert mit 900mA mehr als genug Reserve — Modul begrenzt selbst) |
+| Anschlüsse | 3× JST-PH 2mm (Solar-In, Batterie, Verbraucher/Load-Out) + 1× Micro-USB |
+| Statusanzeige | LED rot = lädt, grün = voll |
+| Bezugsquelle | [Funduino Shop](https://funduinoshop.com/werkstatt/stromversorgung/laderegler/500ma-mini-solar-laderegler-fuer-lipo-lithiumbatterie) |
+
+### Verkabelung
+
+```
+Solarpanel (5V/4,5W) ──► [Solar-In JST]
+                              │
+18650-Akku ─────────────► [Batterie JST]    Lademodul (CN3065)
+                              │
+[Verbraucher JST] ────────────┴──► Pumpenkreis (TTGO BAT-Pin + IRLZ44N/Pumpe)
+```
+
+> **Wichtig:** Die Pumpenschaltung wird an die **Verbraucher-Buchse** angeschlossen,
+> nicht direkt an die Batterie-Buchse — sonst wird die Lade-/Schutzlogik des
+> Moduls umgangen.
+
+### Erster Test (Juni 2026) — Ladevorgang bestätigt
+Solarpanel in direktes Sonnenlicht gehalten → **Status-LED springt auf "lädt" (rot)**.
+Damit ist die Grundverkabelung (Solar-In → CN3065 → Batterie) verifiziert.
+
+### Offener Punkt — noch zu verifizieren
+Die **500mA-Angabe ist die Lade-Strom-Grenze**, nicht zwangsläufig ein Limit für
+die Verbraucher-Buchse — bei vielen einfachen Lademodulen dieser Klasse ist der
+Load-Ausgang direkt mit der Akkuspannung verbunden (kein Strom-Limit für die
+Last). Muss vor dem Dauerbetrieb mit der Pumpe **gemessen** werden, nicht nur
+angenommen (gleiche Vorsicht wie beim Pumpentest mit den Boost-Modulen).
+
+---
+
 ## Nächste Schritte
 
 ### ✅ Entschieden
