@@ -52,6 +52,41 @@ TTN-Webhook (Uplink message)
    Flutter-App (periodischer Poll alle 10s)
 ```
 
+### Sequenzdiagramm — Schreib- und Lese-Pfad
+
+Beide Abläufe sind **zeitlich unabhängig** voneinander — sie teilen sich nur
+DynamoDB als gemeinsamen Speicher. Das ist auch der Hauptgrund für zwei getrennte
+Lambda-Funktionen statt einer (siehe Begründung unten).
+
+```mermaid
+sequenceDiagram
+    participant Node as Irrigator-Node
+    participant TTN
+    participant API as API Gateway
+    participant LW as λ smartgarden-write
+    participant DB as DynamoDB
+    participant LR as λ smartgarden-read
+    participant App as Flutter-App
+
+    Note over Node,DB: Schreib-Pfad — ausgelöst durch Sensor-Uplink
+    Node->>TTN: LoRaWAN Uplink (Pumpe + Bodenfeuchte)
+    TTN->>API: POST /uplink (Webhook)
+    API->>LW: Invoke
+    LW->>DB: PutItem(device_id, frm_payload)
+    DB-->>LW: OK
+    LW-->>API: 200 OK
+    API-->>TTN: 200 OK
+
+    Note over App,DB: zeitlich unabhängig — App pollt alle 10s
+    Note over App,DB: Lese-Pfad — ausgelöst durch App-Polling
+    App->>API: GET /status?device_id=...
+    API->>LR: Invoke
+    LR->>DB: GetItem(device_id)
+    DB-->>LR: Item
+    LR-->>API: 200 {pump, soil}
+    API-->>App: 200 JSON
+```
+
 ---
 
 ## Entscheidung & Begründung
