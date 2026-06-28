@@ -162,6 +162,18 @@ dortige README).
 - **Kein Vergleich der laufenden Kosten** zwischen Firebase und AWS wurde
   angestellt — bei diesem PoC-Volumen (alle 60s ein Uplink) dürften beide
   praktisch kostenlos im Free-Tier-Bereich bleiben.
+- **Keine Historie — anders als bei Firebase**: Firebase erzeugt bei jedem
+  TTN-Webhook-`POST` automatisch einen **neuen** Push-Key-Eintrag (`-Ow99rN4...`,
+  `-Ow99sl0...`, ...) — dadurch entsteht "geschenkt" eine vollständige Historie
+  aller Uplinks. Unser DynamoDB-Schema nutzt `device_id` als alleinigen Partition
+  Key, daher **überschreibt** jedes `PutItem` den vorherigen Datensatz komplett —
+  es bleibt nur der **letzte Stand** pro Gerät erhalten, keine Historie.
+  Für den aktuellen Anwendungsfall (App zeigt nur den aktuellen Status) ist das
+  ausreichend, reicht aber **nicht** für [US-007](../requirements/backlog.md)
+  ("Historische Sensordaten & Diagramme"). Fix bei Bedarf: einen **Sort Key**
+  (z.B. `received_at`) zur Tabelle ergänzen, sodass jeder Uplink einen neuen
+  Datensatz statt einer Überschreibung erzeugt — oder eine separate
+  Historien-Tabelle parallel zur "aktueller Status"-Tabelle führen.
 
 ---
 
