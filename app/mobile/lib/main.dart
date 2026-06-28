@@ -14,6 +14,9 @@ const String ttnMqttHost    = 'eu1.cloud.thethings.network';
 const String ttnIrrigatorAppId    = 'smartgarden-irrigator';
 const String ttnIrrigatorDeviceId = 'smartgarden-irrigator';
 
+// AWS-Backend (Lernpfad, parallel zu Firebase) — API Gateway Invoke URL
+const String awsApiBaseUrl = 'https://e3trf6ld2j.execute-api.eu-central-1.amazonaws.com';
+
 void main() {
   runApp(const SmartGardenApp());
 }
@@ -52,6 +55,11 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
   bool   _irrigatorConnected  = false;
   String _irrigatorLastUpdate = '—';
 
+  bool   _pumpOnAws       = false;
+  int    _soilRawAws      = 0;
+  bool   _awsConnected    = false;
+  String _awsLastUpdate   = '—';
+
   Timer? _timer;
 
   @override
@@ -59,11 +67,45 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
     super.initState();
     _fetchStatus();
     _fetchIrrigatorStatus();
+    _fetchIrrigatorStatusAws();
     // alle 10s aktualisieren
     _timer = Timer.periodic(const Duration(seconds: 10), (_) {
       _fetchStatus();
       _fetchIrrigatorStatus();
+      _fetchIrrigatorStatusAws();
     });
+  }
+
+  // Liest den Irrigator-Status über den AWS-Pfad (API Gateway → Lambda → DynamoDB)
+  // — paralleler Lernpfad zu Firebase, gleiche Payload-Struktur (Byte 0 = Pumpe,
+  // Byte 1-2 = Bodenfeuchte), nur als Base64 über JSON statt direkt aus TTN.
+  Future<void> _fetchIrrigatorStatusAws() async {
+    final url = Uri.parse(
+      '$awsApiBaseUrl/status?device_id=$ttnIrrigatorDeviceId'
+    );
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final frmPayload = data['frm_payload'] as String?;
+        if (frmPayload == null || frmPayload.isEmpty) return;
+
+        final bytes = base64Decode(frmPayload);
+        final pump  = bytes.isNotEmpty ? bytes[0] == 0x01 : false;
+        final soil  = bytes.length > 2 ? (bytes[1] << 8) | bytes[2] : 0;
+        final time  = data['received_at'] as String? ?? '—';
+
+        setState(() {
+          _pumpOnAws     = pump;
+          _soilRawAws    = soil;
+          _awsConnected  = true;
+          _awsLastUpdate = time.length > 18 ? time.substring(11, 19) : time;
+        });
+      }
+    } catch (e) {
+      debugPrint('AWS Fetch-Fehler: $e');
+      setState(() => _awsConnected = false);
+    }
   }
 
   // Extrahiert den neuesten Eintrag aus einer TTN-Webhook-Firebase-Struktur
@@ -318,6 +360,49 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.grey, fontSize: 12),
             ),
+
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 16),
+
+            Row(
+              children: [
+                const Text('Bewässerung (AWS)',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                Icon(
+                  _awsConnected ? Icons.wifi : Icons.wifi_off,
+                  size: 18,
+                  color: _awsConnected ? Colors.green : Colors.red[200],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(child: _StatusCard(
+                  icon: Icons.water_drop,
+                  label: 'Pumpe',
+                  value: _pumpOnAws ? 'AN' : 'AUS',
+                  color: _pumpOnAws ? Colors.blue : Colors.grey,
+                )),
+                const SizedBox(width: 16),
+                Expanded(child: _StatusCard(
+                  icon: Icons.grass,
+                  label: 'Bodenfeuchte',
+                  value: _soilMoisturePercent(_soilRawAws),
+                  color: _soilMoistureColor(_soilRawAws),
+                )),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+            Text(
+              'Letztes Update: $_awsLastUpdate',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -328,15 +413,17 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
   static const int _soilDryRaw = 1671;
   static const int _soilWetRaw = 667;
 
-  String _soilMoisturePercent() {
-    final pct = ((_soilDryRaw - _soilRaw) / (_soilDryRaw - _soilWetRaw) * 100)
+  String _soilMoisturePercent([int? raw]) {
+    final value = raw ?? _soilRaw;
+    final pct = ((_soilDryRaw - value) / (_soilDryRaw - _soilWetRaw) * 100)
         .clamp(0, 100)
         .round();
     return '$pct%';
   }
 
-  Color _soilMoistureColor() {
-    final pct = ((_soilDryRaw - _soilRaw) / (_soilDryRaw - _soilWetRaw) * 100)
+  Color _soilMoistureColor([int? raw]) {
+    final value = raw ?? _soilRaw;
+    final pct = ((_soilDryRaw - value) / (_soilDryRaw - _soilWetRaw) * 100)
         .clamp(0, 100);
     if (pct < 25) return Colors.red;
     if (pct < 50) return Colors.orange;
