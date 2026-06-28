@@ -472,6 +472,54 @@ angenommen (gleiche Vorsicht wie beim Pumpentest mit den Boost-Modulen).
 
 ---
 
+## Tropfsystem-Komponenten (Juni 2026)
+
+Pumpenschlauch der YWBL-WH Membranpumpe hat **6mm Innendurchmesser / 8mm
+Außendurchmesser** — ein in der Bewässerungsbranche unüblicher Zwischenwert
+(Markensysteme sind meist auf 4mm/4,6mm oder 13/16mm normiert). Folgende
+Komponenten überbrücken das:
+
+| Komponente | Produkt | Zweck |
+|---|---|---|
+| Inline-Filter | [Brewzilla Wasserfilter, 8mm Push-In, 100 Mikron](https://www.amazon.de/Brewzilla-Wasserfilter-f%C3%BCr-Schlauch-Push/dp/B0BFHGKXKW) | Filtert Sediment/Algen direkt am Pumpenausgang, bevor es zu den feinen Tropfstellen kommt |
+| Reduzierstück | [Schlauchverbinder-Reduzierer 6mm/4mm](https://www.amazon.de/Schlauchverbinder-reduzierer-6mm-4mm/dp/B017SYOLO6) | Übergang vom 6mm-Pumpenschlauch auf 4mm-Stutzen, passt elastisch in Gardenas 4,6mm-Leitung |
+| Tropfsystem | [GARDENA Tropfrohr 4,6mm, 15m](https://www.gardena.com/de/produkte/bewaesserung/micro-drip-system/tropfrohr-46-mm-316-15-m/900910701.html) | Verteilung übers Hochbeet, selbstreinigende Labyrinth-Tropfer integriert |
+| Ansaugfilter (Saugseite, Tonne) | DIY (kein passendes Fertigprodukt für 6mm gefunden) | Verhindert Aufschwimmen + grobe Partikel beim Ansaugen aus der Regentonne |
+
+### Verkabelung/Verschlauchung
+
+```
+Regentonne ──► [DIY-Ansaugfilter] ──► Pumpe (6/8mm)
+                                          │
+                                   [Brewzilla Inline-Filter]
+                                          │
+                                   [Reduzierer 6mm→4mm]
+                                          │
+                                   [Gardena Tropfrohr 4,6mm] ──► Hochbeet
+```
+
+### DIY-Ansaugfilter mit Gewicht — Bauanleitung
+
+Kein Markenprodukt für 6mm-Schläuche gefunden (Aquarium-Ansaugkörbe sind für
+9/12mm+ ausgelegt, Garten-Ansaugfilter für 1/2"-3/4"). Selbstbau:
+
+**Material:** feines Nylongewebe (z.B. alte Strumpfhose/Mückennetz-Rest),
+2 Kabelbinder, kleines Gewicht (Unterlegscheibe/Stein, ~5-10g)
+
+**Aufbau:**
+1. Schlauchende mit Nylongewebe umwickeln (wie eine Mütze über die Öffnung)
+2. Mit Kabelbinder knapp hinter der Öffnung fixieren (Gewebe nicht ins
+   Schlauchinnere ziehen)
+3. Gewicht direkt daneben mit zweitem Kabelbinder anbringen — verhindert
+   Aufschwimmen in der Tonne
+4. Funktionstest: Schlauchende in Eimer Wasser, Pumpe testen — fördert sie
+   weiterhin zuverlässig durch das Gewebe?
+
+> Gewebe nicht zu fein wählen — ein Mückennetz-Maschenwerk reicht, um
+> Blätter/groben Schmutz abzuhalten, ohne dass sich die Pumpe selbst zusaugt.
+
+---
+
 ## Nächste Schritte
 
 ### ✅ Entschieden
