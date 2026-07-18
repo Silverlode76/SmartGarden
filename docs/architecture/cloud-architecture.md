@@ -22,7 +22,6 @@ flowchart LR
         SNS["SNS\nSmartGardenHeartBeat"]
 
         WRITE --> DYNAMO
-        APIGW --> WRITE
         APIGW --> READ --> DYNAMO
         EB -->|alle 5min| WATCHDOG
         WATCHDOG -->|GetItem| DYNAMO
