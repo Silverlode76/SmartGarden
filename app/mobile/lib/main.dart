@@ -61,6 +61,7 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
   int    _batteryMvAws    = 0;
   bool   _awsConnected    = false;
   String _awsLastUpdate   = '—';
+  int    _awsSilenceSec   = 0;   // Sekunden seit letztem Uplink
 
   Timer? _timer;
 
@@ -98,12 +99,21 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
         final batMv  = bytes.length > 4 ? (bytes[3] << 8) | bytes[4] : 0;
         final time   = data['received_at'] as String? ?? '—';
 
+        // Heartbeat: Sekunden seit letztem Uplink berechnen
+        int silenceSec = 0;
+        try {
+          silenceSec = DateTime.now()
+              .difference(DateTime.parse(time))
+              .inSeconds;
+        } catch (_) {}
+
         setState(() {
           _pumpOnAws      = pump;
           _soilRawAws     = soil;
           _batteryMvAws   = batMv;
           _awsConnected   = true;
           _awsLastUpdate  = time.length > 18 ? time.substring(11, 19) : time;
+          _awsSilenceSec  = silenceSec;
         });
       }
     } catch (e) {
@@ -390,6 +400,8 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            _HeartbeatBanner(silenceSec: _awsSilenceSec, timeoutSec: 1800),
             const SizedBox(height: 12),
 
             Row(
@@ -464,6 +476,64 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
     if (pct < 15) return Colors.red;
     if (pct < 30) return Colors.orange;
     return Colors.green;
+  }
+}
+
+// Zeigt einen farbigen Banner wenn das Device zu lange still ist.
+// Grün < 50% Timeout · Orange 50–100% · Rot > 100% (überfällig)
+class _HeartbeatBanner extends StatelessWidget {
+  final int silenceSec;
+  final int timeoutSec;
+
+  const _HeartbeatBanner({required this.silenceSec, required this.timeoutSec});
+
+  @override
+  Widget build(BuildContext context) {
+    if (silenceSec == 0) return const SizedBox.shrink();
+
+    final ratio = silenceSec / timeoutSec;
+    final Color color;
+    final IconData icon;
+    final String label;
+
+    if (ratio < 0.5) {
+      color = Colors.green;
+      icon  = Icons.check_circle_outline;
+      label = 'Letzter Uplink vor ${_fmt(silenceSec)}';
+    } else if (ratio < 1.0) {
+      color = Colors.orange;
+      icon  = Icons.warning_amber_outlined;
+      label = 'Kein Uplink seit ${_fmt(silenceSec)} — bald überfällig';
+    } else {
+      color = Colors.red;
+      icon  = Icons.error_outline;
+      label = 'KEIN UPLINK seit ${_fmt(silenceSec)} — Device prüfen!';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        border: Border.all(color: color.withOpacity(0.4)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(label,
+                style: TextStyle(fontSize: 12, color: color)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fmt(int sec) {
+    if (sec < 60)   return '${sec}s';
+    if (sec < 3600) return '${sec ~/ 60}min';
+    return '${sec ~/ 3600}h ${(sec % 3600) ~/ 60}min';
   }
 }
 

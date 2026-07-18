@@ -46,7 +46,7 @@ const lmic_pinmap lmic_pins = {
 
 // ── LoRaWAN ───────────────────────────────────────────────────
 #define LORA_PORT          1
-#define TX_INTERVAL_SEC    55    // Debugging — für Produktion: 1800 (30 min)
+#define TX_INTERVAL_SEC    900   // 15 Minuten — ~96 Joins/Tag
 
 // ── RTC-RAM: Pump-Zustand überlebt Deep Sleep ─────────────────
 RTC_DATA_ATTR static bool rtcPumpOn = false;
@@ -189,13 +189,11 @@ void setup() {
     delay(500);
     Serial.println("\n=== SmartGarden Irrigator PoC v0.4 ===");
 
-    // GPIO12 sofort LOW — Pumpe darf beim Boot nicht laufen (Strapping-Pin)
     pinMode(PUMP_GATE_PIN, OUTPUT);
     digitalWrite(PUMP_GATE_PIN, LOW);
     pinMode(SOIL_PWR_PIN, OUTPUT);
     digitalWrite(SOIL_PWR_PIN, LOW);
 
-    // Pump-Zustand aus RTC-RAM wiederherstellen
     pumpRunning = rtcPumpOn;
     if (pumpRunning) {
         digitalWrite(PUMP_GATE_PIN, HIGH);
