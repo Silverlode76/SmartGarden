@@ -13,15 +13,16 @@ flowchart LR
     end
 
     subgraph AWS["☁️ AWS  eu-central-1"]
-        WEBHOOK["λ ttn-webhook\nHTTP Integration"]
+        WRITE["λ smartgarden-write\nTTN POST → DynamoDB"]
         DYNAMO[("DynamoDB\nsmartgarden-devices\ndevice_id · payload\nreceived_at · pump")]
         APIGW["API Gateway\nREST · HTTPS"]
-        READ["λ smartgarden-read\nPayload dekodieren"]
+        READ["λ smartgarden-read\nStatus lesen"]
         WATCHDOG["λ smartgarden-watchdog\nSilence > 1800s?"]
         EB["EventBridge\nrate(5 minutes)"]
         SNS["SNS\nSmartGardenHeartBeat"]
 
-        WEBHOOK --> DYNAMO
+        WRITE --> DYNAMO
+        APIGW --> WRITE
         APIGW --> READ --> DYNAMO
         EB -->|alle 5min| WATCHDOG
         WATCHDOG -->|GetItem| DYNAMO
@@ -35,7 +36,7 @@ flowchart LR
     end
 
     ESP -->|LoRa Uplink| GW
-    TTN -->|HTTP Webhook| WEBHOOK
+    TTN -->|HTTP Webhook POST| WRITE
     MOBILE -->|HTTPS GET| APIGW
     DYNAMO -.->|JSON Response| MOBILE
     SNS -.->|E-Mail bei Silence| MAIL
