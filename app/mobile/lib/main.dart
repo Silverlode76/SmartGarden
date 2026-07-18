@@ -52,11 +52,13 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
 
   bool   _pumpOn              = false;
   int    _soilRaw             = 0;
+  int    _batteryMv           = 0;
   bool   _irrigatorConnected  = false;
   String _irrigatorLastUpdate = '—';
 
   bool   _pumpOnAws       = false;
   int    _soilRawAws      = 0;
+  int    _batteryMvAws    = 0;
   bool   _awsConnected    = false;
   String _awsLastUpdate   = '—';
 
@@ -90,16 +92,18 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
         final frmPayload = data['frm_payload'] as String?;
         if (frmPayload == null || frmPayload.isEmpty) return;
 
-        final bytes = base64Decode(frmPayload);
-        final pump  = bytes.isNotEmpty ? bytes[0] == 0x01 : false;
-        final soil  = bytes.length > 2 ? (bytes[1] << 8) | bytes[2] : 0;
-        final time  = data['received_at'] as String? ?? '—';
+        final bytes  = base64Decode(frmPayload);
+        final pump   = bytes.isNotEmpty ? bytes[0] == 0x01 : false;
+        final soil   = bytes.length > 2 ? (bytes[1] << 8) | bytes[2] : 0;
+        final batMv  = bytes.length > 4 ? (bytes[3] << 8) | bytes[4] : 0;
+        final time   = data['received_at'] as String? ?? '—';
 
         setState(() {
-          _pumpOnAws     = pump;
-          _soilRawAws    = soil;
-          _awsConnected  = true;
-          _awsLastUpdate = time.length > 18 ? time.substring(11, 19) : time;
+          _pumpOnAws      = pump;
+          _soilRawAws     = soil;
+          _batteryMvAws   = batMv;
+          _awsConnected   = true;
+          _awsLastUpdate  = time.length > 18 ? time.substring(11, 19) : time;
         });
       }
     } catch (e) {
@@ -135,14 +139,16 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
         final frmPayload = latest['uplink_message']?['frm_payload'] as String?;
         if (frmPayload == null) return;
 
-        final bytes = base64Decode(frmPayload);
-        final pump  = bytes.isNotEmpty ? bytes[0] == 0x01 : false;
-        final soil  = bytes.length > 2 ? (bytes[1] << 8) | bytes[2] : 0;
-        final time  = latest['received_at'] as String? ?? '—';
+        final bytes  = base64Decode(frmPayload);
+        final pump   = bytes.isNotEmpty ? bytes[0] == 0x01 : false;
+        final soil   = bytes.length > 2 ? (bytes[1] << 8) | bytes[2] : 0;
+        final batMv  = bytes.length > 4 ? (bytes[3] << 8) | bytes[4] : 0;
+        final time   = latest['received_at'] as String? ?? '—';
 
         setState(() {
           _pumpOn              = pump;
           _soilRaw             = soil;
+          _batteryMv           = batMv;
           _irrigatorConnected  = true;
           _irrigatorLastUpdate = time.length > 18 ? time.substring(11, 19) : time;
         });
@@ -351,6 +357,13 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
                   value: _soilMoisturePercent(),
                   color: _soilMoistureColor(),
                 )),
+                const SizedBox(width: 16),
+                Expanded(child: _StatusCard(
+                  icon: Icons.battery_std,
+                  label: 'Akku',
+                  value: _batteryPercent(_batteryMv),
+                  color: _batteryColor(_batteryMv),
+                )),
               ],
             ),
 
@@ -394,6 +407,13 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
                   value: _soilMoisturePercent(_soilRawAws),
                   color: _soilMoistureColor(_soilRawAws),
                 )),
+                const SizedBox(width: 16),
+                Expanded(child: _StatusCard(
+                  icon: Icons.battery_std,
+                  label: 'Akku',
+                  value: _batteryPercent(_batteryMvAws),
+                  color: _batteryColor(_batteryMvAws),
+                )),
               ],
             ),
 
@@ -427,6 +447,22 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
         .clamp(0, 100);
     if (pct < 25) return Colors.red;
     if (pct < 50) return Colors.orange;
+    return Colors.green;
+  }
+
+  // LiPo: 4200 mV = 100%, 3000 mV = 0%
+  // Werte unter 100 mV = Payload noch nicht empfangen → '—' anzeigen
+  String _batteryPercent(int mv) {
+    if (mv < 100) return '—';
+    final pct = ((mv - 3000) / (4200 - 3000) * 100).clamp(0, 100).round();
+    return '$pct%';
+  }
+
+  Color _batteryColor(int mv) {
+    if (mv < 100) return Colors.grey;
+    final pct = ((mv - 3000) / (4200 - 3000) * 100).clamp(0, 100);
+    if (pct < 15) return Colors.red;
+    if (pct < 30) return Colors.orange;
     return Colors.green;
   }
 }
