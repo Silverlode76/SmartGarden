@@ -1,5 +1,61 @@
 # Firmware State Machine & Systemsequenz
 
+## Irrigator Node v0.4 (OTAA + Deep Sleep + Bewässerung)
+
+Ablauf: **Boot → OTAA-Join → Messen → Senden → Deep Sleep → repeat**  
+Pumpe aktiv: kein Sleep, alle 15s Prüfzyklus (Notbremse nach 120s).
+
+```mermaid
+stateDiagram-v2
+    [*] --> BOOT
+
+    BOOT --> JOINING : setup() abgeschlossen\nGPIO init + RTC-RAM lesen
+
+    JOINING --> MEASURING : EV_JOINED ✓
+    JOINING --> SLEEPING  : EV_JOIN_FAILED ✗\n(900s schlafen, dann retry)
+
+    MEASURING --> TRANSMITTING : Bodenfeuchte + Akku gemessen\nBewässerungsentscheid getroffen
+
+    TRANSMITTING --> SLEEPING : EV_TXCOMPLETE\nPumpe AUS
+    TRANSMITTING --> PUMPING  : EV_TXCOMPLETE\nPumpe AN (Boden zu trocken)
+
+    PUMPING --> MEASURING : Timer 15s\n(nächste Prüfung)
+    PUMPING --> SLEEPING  : EV_TXCOMPLETE\nPumpe AUS (feucht / Notbremse 120s)
+
+    SLEEPING --> BOOT : Timer-Wakeup nach 900s\nrtcPumpOn bleibt erhalten
+```
+
+### Zustände
+
+| Zustand | Dauer | Strom | Beschreibung |
+|---|---|---|---|
+| **BOOT** | ~500ms | ~80mA | GPIO init, RTC-RAM lesen, LMIC init |
+| **JOINING** | 5–10s | ~80mA | OTAA Join via TTN (jeder Zyklus) |
+| **MEASURING** | ~100ms | ~80mA | GPIO34 Bodenfeuchte + GPIO35 Batterie + Bewässerungsentscheid |
+| **TRANSMITTING** | ~2–4s | ~120mA | LoRa Uplink 5 Bytes (Pumpe + Boden + Akku mV) |
+| **PUMPING** | max. 120s | ~80mA | Pumpe läuft, alle 15s → MEASURING → TRANSMITTING |
+| **SLEEPING** | 900s | ~5.5mA | Deep Sleep (AMS1117-LDO läuft mit) |
+
+### Payload (5 Bytes, FPort 1)
+
+| Byte | Inhalt | Format |
+|---|---|---|
+| 0 | Pumpenstatus | `0x00` = AUS · `0x01` = AN |
+| 1–2 | Bodenfeuchte ADC-Rohwert | 16-bit big-endian |
+| 3–4 | Batteriespannung | 16-bit big-endian in mV |
+
+### RTC-RAM
+
+| Variable | Inhalt |
+|---|---|
+| `rtcPumpOn` | Pumpzustand vor Sleep — wird nach Wakeup sofort wiederhergestellt |
+
+> LoRaWAN-Session-Persistenz (Keys, Frame Counter) wurde entfernt — TTN v3 verwirft
+> Uplinks bei Frame-Counter-Inkonsistenz nach Restore. Frischer OTAA-Join je Zyklus
+> ist zuverlässiger (gleiche Erfahrung wie beim Guard Node, siehe unten).
+
+---
+
 ## Guard Node v0.2 (Deep Sleep + PIR Wakeup)
 
 ---
