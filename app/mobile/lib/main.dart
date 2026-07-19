@@ -267,7 +267,7 @@ class _SmartGardenHomeState extends State<SmartGardenHome> {
           ),
         ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
